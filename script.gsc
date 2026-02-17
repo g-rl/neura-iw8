@@ -85,9 +85,9 @@ on_player_spawned()
         self.godmode_active = true;
 
         self giveachievement("FINISH"); // u kno its tea when u
-        self iprintlnbold("^3neura iw8 ^7* ^3@nyli2b");
-        self iprintln("^3[neura] * heyyy, " + self.name + " :3");
-        self iprintln("^3[neura] * running on iw8-mod @nyli2b");
+        self iprintlnbold("^;neura iw8 ^7* ^;@nyli2b");
+        self iprintln("ߝ ^;[neura] * heyyy, " + self.name + " :3");
+        self iprintln("ߝ ^;[neura] * running on iw8-mod @nyli2b");
         self registercommands();
         self thread create_notify();
         self thread watch_noclip();
@@ -247,8 +247,8 @@ watch_aimbot()
             if ( var_1 == 1 )
             {
                 self thread aimbot();
-                self iprintln( "[player] * ^3aimbot enabled @ " + range + " range");
-                self iprintln( "[player] * ^3mode: all weapons");
+                self iprintln( "[player] * ^;aimbot enabled @ " + range + " range");
+                self iprintln( "[player] * ^;mode: all weapons");
             }
             else
             {
@@ -285,7 +285,7 @@ botmove()
         {
             player setorigin( self.origin );
             player save_spawn();
-            self iprintln("[bot] * attemtping to move all bots to ^3" + self.origin );
+            self iprintln("[bot] * attemtping to move all bots to ^;" + self.origin );
         }
     }
 }
@@ -298,7 +298,7 @@ botmove_b(args)
         {
             player setorigin( self.origin );
             player save_spawn();
-            self iprintln("[bot] * ^3" + player.name + " ^7moved to ^3" + self.origin );
+            self iprintln("[bot] * ^;" + player.name + " ^7moved to ^;" + self.origin );
         }
     }
 }
@@ -313,7 +313,7 @@ save_pos_bind()
         if (self getstance() == "crouch")
         {
             self save_spawn();
-            self iprintln("[position] * saved @ ^3" + self.origin);
+            self iprintln("[position] * saved @ ^;" + self.origin);
             self.pers["saved_pos"] = true;
             waittillframeend;
         }
@@ -482,7 +482,7 @@ enable_noclip()
     self.noclipanchor = spawn( "script_origin", self.origin );
     self.noclipanchor.angles = self.angles;
     self playerlinkto( self.noclipanchor );
-    self iprintln("[ufo] * started @ ^3" + self.origin);
+    self iprintln("[ufo] * started @ ^;" + self.origin);
     wait 4.1;
 }
 
@@ -524,7 +524,7 @@ watch_instaswaps()
             if ( var_1 == 1 )
             {
                 self thread instaswaps();
-                self iprintln( "[player] * ^3bo2 instaswaps enabled" );
+                self iprintln( "[player] * ^;bo2 instaswaps enabled" );
             }
             else
             {
@@ -635,7 +635,7 @@ addcamotocurrentweapon( var_0 )
     self scripts\cp_mp\utility\inventory_utility::_giveweapon( var_3 );
     self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_3 );
     self refillweaponammo( var_3 );
-    self iprintln( "[weapon] * ^3applied camo: ^7" + var_0 + var_2 >= 0 ? " ^3(variant " + var_2 + " preserved)" : "" );
+    self iprintln( "[weapon] * ^;applied camo: ^7" + var_0 + var_2 >= 0 ? " ^;(variant " + var_2 + " preserved)" : "" );
 }
 
 refill_all_ammo()
@@ -697,10 +697,10 @@ watch_addbot()
             var_5 = "";
 
             if ( isdefined( var_4 ) )
-                var_5 = " ^3at difficulty: ^7" + var_4;
+                var_5 = " ^;at difficulty: ^7" + var_4;
 
             var_6 = get_team_display_name( var_3, self );
-            self iprintln( "[bot] * ^3Spawning ^7" + var_1 + " ^3bot(s) on team: ^7" + var_6 + var_5 );
+            self iprintln( "[bot] * ^;Spawning ^7" + var_1 + " ^;bot(s) on team: ^7" + var_6 + var_5 );
         }
 
         wait 0.25;
@@ -750,7 +750,7 @@ watch_kickbot()
                 wait 0.1;
             }
 
-            self iprintln( "[bot] * ^3Kicked ^7" + var_4 + " ^3bot(s)" );
+            self iprintln( "[bot] * ^;Kicked ^7" + var_4 + " ^;bot(s)" );
         }
 
         wait 0.25;
@@ -801,7 +801,7 @@ watch_bot_difficulty()
                 var_4++;
             }
 
-            self iprintln( "[bot] * ^3Changed difficulty to ^7" + var_1 + " ^3for ^7" + var_4 + " ^3bot(s)" );
+            self iprintln( "[bot] * ^;Changed difficulty to ^7" + var_1 + " ^;for ^7" + var_4 + " ^;bot(s)" );
         }
 
         wait 0.25;
@@ -885,7 +885,7 @@ watch_bot_behavior()
         {
             setdvar( "bot_preset", "" );
             apply_bot_preset( var_0 );
-            self iprintln( "[bot] * ^3Applied bot preset: ^7" + var_0 );
+            self iprintln( "[bot] * ^;Applied bot preset: ^7" + var_0 );
         }
 
         var_1 = getdvarint( "bot_follow_player", 0 );
@@ -899,7 +899,7 @@ watch_bot_behavior()
                 thread manage_bot_follow_behavior();
 
                 if ( self ishost() )
-                    self iprintln( "[bot] * ^3Bots now following player" );
+                    self iprintln( "[bot] * ^;Bots now following player" );
             }
         }
         else if ( isdefined( level.bot_follow_active ) && level.bot_follow_active )
@@ -908,7 +908,7 @@ watch_bot_behavior()
             level notify( "stop_bot_follow" );
 
             if ( self ishost() )
-                self iprintln( "[bot] * ^3Bots stopped following" );
+                self iprintln( "[bot] * ^;Bots stopped following" );
         }
 
         var_2 = getdvarint( "bot_omniscient", 0 );
@@ -921,7 +921,7 @@ watch_bot_behavior()
                 thread manage_bot_omniscient();
 
                 if ( self ishost() )
-                    self iprintln( "[bot] * ^3Bots now omniscient (always know player location)" );
+                    self iprintln( "[bot] * ^;Bots now omniscient (always know player location)" );
             }
         }
         else if ( isdefined( level.bot_omniscient_active ) && level.bot_omniscient_active )
@@ -930,7 +930,7 @@ watch_bot_behavior()
             level notify( "stop_bot_omniscient" );
 
             if ( self ishost() )
-                self iprintln( "[bot] * ^3Bots no longer omniscient" );
+                self iprintln( "[bot] * ^;Bots no longer omniscient" );
         }
 
         var_4 = getdvarint( "bot_ignore_player", 0 );
@@ -943,7 +943,7 @@ watch_bot_behavior()
                 thread make_bots_ignore_player();
 
                 if ( self ishost() )
-                    self iprintln( "[bot] * ^3Bots now ignoring player" );
+                    self iprintln( "[bot] * ^;Bots now ignoring player" );
             }
         }
         else if ( isdefined( level.bots_ignore_player ) && level.bots_ignore_player )
@@ -952,7 +952,7 @@ watch_bot_behavior()
             level notify( "stop_bot_ignore" );
 
             if ( self ishost() )
-                self iprintln( "[bot] * ^3Bots no longer ignoring player" );
+                self iprintln( "[bot] * ^;Bots no longer ignoring player" );
         }
 
         wait 0.5;
@@ -1151,7 +1151,7 @@ apply_bot_preset( var_0 )
             setdvar( "bot_omniscient", 0 );
             setdvar( "bot_ignore_player", 0 );
             setdvar( "bot_aggro_range", 0 );
-            self iprintln( "[bot] * ^3preset: default" );
+            self iprintln( "[bot] * ^;preset: default" );
             break;
         case "aggro":
             setdvar( "bot_follow_player", 1 );
@@ -1160,13 +1160,13 @@ apply_bot_preset( var_0 )
             setdvar( "bot_omniscient", 1 );
             setdvar( "bot_ignore_player", 0 );
             setdvar( "bot_aggro_range", 99999 );
-            self iprintln( "[bot] * ^3preset: aggro" );
+            self iprintln( "[bot] * ^;preset: aggro" );
             break;
         default:
             self iprintln( "[bot] * ^1Unknown preset: ^7" + var_0 );
-            self iprintln( "[bot] * ^3Available presets:" );
-            self iprintln( "[bot] * ^7  default ^3- Reset all to default" );
-            self iprintln( "[bot] * ^7  aggro ^3- Max follow + Sprint + Omniscient" );
+            self iprintln( "[bot] * ^;Available presets:" );
+            self iprintln( "[bot] * ^7  default ^;- Reset all to default" );
+            self iprintln( "[bot] * ^7  aggro ^;- Max follow + Sprint + Omniscient" );
             break;
     }
 }
@@ -1197,13 +1197,13 @@ watch_bot_outline()
             if ( var_3 == "0" || var_3 == "off" || var_3 == "disable" || var_2 == "" )
             {
                 var_1 = 0;
-                self iprintln( "[bot] * ^3Bot outlines: ^7Disabled" );
+                self iprintln( "[bot] * ^;Bot outlines: ^7Disabled" );
             }
             else
             {
                 var_4 = parse_outline_input( var_3 );
                 var_1 = 1;
-                self iprintln( "[bot] * ^3Bot outlines enabled: ^7" + var_4 );
+                self iprintln( "[bot] * ^;Bot outlines enabled: ^7" + var_4 );
                 self thread outline_all_bots_continuous( var_4 );
             }
         }
@@ -1327,12 +1327,12 @@ watchbottpdvar()
             if ( var_1 == "me" || var_1 == "player" || var_1 == "here" )
             {
                 var_2 = teleport_all_bots_to_player();
-                self iprintln( "[bot] * ^3Teleported ^7" + var_2 + " ^3bot(s) to your location" );
+                self iprintln( "[bot] * ^;Teleported ^7" + var_2 + " ^;bot(s) to your location" );
             }
             else if ( var_1 == "spread" || var_1 == "scatter" )
             {
                 var_2 = teleport_bots_spread_around_player();
-                self iprintln( "[bot] * ^3Spread ^7" + var_2 + " ^3bot(s) around you" );
+                self iprintln( "[bot] * ^;Spread ^7" + var_2 + " ^;bot(s) around you" );
             }
             else
                 self iprintln( "[bot] * ^1Invalid option. Use: ^7me, spread" );
@@ -1359,11 +1359,11 @@ watch_self_outline()
             wait 0.05;
 
             if ( var_1 == "0" || var_1 == "off" || var_1 == "" )
-                self iprintln( "[player] * ^3Viewmodel outline: ^7Disabled" );
+                self iprintln( "[player] * ^;Viewmodel outline: ^7Disabled" );
             else
             {
                 var_2 = parse_outline_input( var_1 );
-                self iprintln( "[player] * ^3Viewmodel outline: ^7" + var_2 );
+                self iprintln( "[player] * ^;Viewmodel outline: ^7" + var_2 );
                 scripts\mp\utility\outline::_hudoutlineviewmodelenable( var_2, 0 );
             }
         }
@@ -1470,7 +1470,7 @@ watch_barriers()
                 foreach ( var_8 in level.players )
                 {
                     if ( isdefined( var_8 ) )
-                        var_8 iprintln( "[game] * ^3Barriers Disabled" );
+                        var_8 iprintln( "[game] * ^;Barriers Disabled" );
                 }
             }
             else
@@ -1564,7 +1564,7 @@ watch_night_vision()
             if ( var_1 == 1 )
             {
                 thread enablenightvision();
-                self iprintln( "[player] * ^3Night Vision Activated" );
+                self iprintln( "[player] * ^;Night Vision Activated" );
             }
             else
             {
@@ -1610,7 +1610,7 @@ watch_oob()
             if ( var_1 == 1 )
             {
                 thread disableoutofbounds();
-                self iprintln( "[game] * ^3Out of Bounds Bypass Activated" );
+                self iprintln( "[game] * ^;Out of Bounds Bypass Activated" );
             }
             else
             {
@@ -1724,7 +1724,7 @@ giveweaponviadvr( var_0 )
     {
         if ( self hasweapon( var_5 ) )
         {
-            self iprintln( "[weapon] * ^3Already Have: ^7" + var_0 );
+            self iprintln( "[weapon] * ^;Already Have: ^7" + var_0 );
             return;
         }
 
@@ -1817,7 +1817,7 @@ applyvarianttocurrentweapon( var_0 )
         var_6 = var_6 + ( " ^6(Camo: " + var_3 + ")" );
 
     if ( var_2.size > 0 )
-        var_6 = var_6 + ( " ^3(" + var_2.size + " attachments)" );
+        var_6 = var_6 + ( " ^;(" + var_2.size + " attachments)" );
 
     self iprintln( var_6 );
     self playlocalsound( "ui_mp_weapon_pickup" );
@@ -1884,7 +1884,7 @@ applyakimbotocurrentweapon( var_0 )
     self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_6 );
     wait 0.05;
     self refillweaponammo( var_6 );
-    self iprintln( var_0 ? "^2Enabled" : "^1Disabled" + " ^7akimbo: ^3" + var_5 + var_4 >= 0 ? " ^6(Variant " + var_4 + ")" : "" );
+    self iprintln( var_0 ? "^2Enabled" : "^1Disabled" + " ^7akimbo: ^;" + var_5 + var_4 >= 0 ? " ^6(Variant " + var_4 + ")" : "" );
 }
 
 watch_attachment()
