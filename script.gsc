@@ -54,6 +54,9 @@ setup_dvars()
     setdvarifuninitialized( "weapon_switch", 1 );
     setdvarifuninitialized( "godmode", 1 );
     setdvarifuninitialized( "instaswaps", 1 ); // eq swaps
+    setdvarifuninitialized( "refillbind", 1 ); // eq swaps
+    setdvarifuninitialized( "autoreload", 1 ); // eq swaps
+    setdvarifuninitialized( "autoprone", 1 ); // eq swaps
 }
 
 on_player_connect()
@@ -88,7 +91,7 @@ on_player_spawned()
         self iprintlnbold("^;neura iw8 ^7* ^;@nyli2b");
         self iprintln("ߝ ^;[neura] * heyyy, " + self.name + " :3");
         self iprintln("ߝ ^;[neura] * running on iw8-mod @nyli2b");
-        self registercommands();
+        self register_commands();
         self thread create_notify();
         self thread watch_noclip();
         self thread unlimited_eq();
@@ -129,11 +132,12 @@ on_player_spawned()
 }
 
 // commands
-registercommands()
+register_commands()
 {
     self thread createcommand("freeze", "freeze all bots", ::botfreeze);
     self thread createcommand("tp",  "teleport all bots to self", ::botmove_b);
-    self thread createcommand("tpa", "teleport all bots to self", ::botmove);
+    self thread createcommand("tpa", "teleport a bots to self", ::botmove);
+    self thread createcommand("ammo", "refill all ammo", ::refill_my_ammo);
 }
 
 createcommand(command, desc, callback)
@@ -277,15 +281,18 @@ load_spawn()
     self setplayerangles( self.pers["saved_angles"] );
 }
 
-botmove()
+botmove(args)
 {
-    foreach( player in level.players ) 
+    if (args[0] == "all")
     {
-        if ( isai( player ) || isbot( player ) ) 
+        foreach( player in level.players ) 
         {
-            player setorigin( self.origin );
-            player save_spawn();
-            self iprintln("[bot] * attemtping to move all bots to ^;" + self.origin );
+            if ( isai( player ) || isbot( player ) ) 
+            {
+                    player setorigin( self.origin );
+                    player save_spawn();
+                    self iprintln("[bot] * attemtping to move all bots to ^;" + self.origin );
+            }
         }
     }
 }
@@ -636,6 +643,14 @@ addcamotocurrentweapon( var_0 )
     self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_3 );
     self refillweaponammo( var_3 );
     self iprintln( "[weapon] * ^;applied camo: ^7" + var_0 + var_2 >= 0 ? " ^;(variant " + var_2 + " preserved)" : "" );
+}
+
+refill_my_ammo(args)
+{
+    if (args == "all")
+        self thread refill_all_ammo();
+    else
+        self thread refill_all_ammo();
 }
 
 refill_all_ammo()
@@ -2140,6 +2155,35 @@ teleport_bots_spread_around_player()
     return var_0.size;
 }
 
+watch_auto_prone() 
+{
+    self endon("disconnect");
+    level endon("game_ended");
+
+    var_0 = getdvar( "autoprone", "" );
+
+    for (;;)
+    {
+        var_1 = getdvarint( "autoprone", 0 );
+
+        if ( var_1 != var_0 )
+        {
+            var_0 = var_1;
+
+            if ( var_1 == 1 )
+            {
+                self thread auto_prone();
+                self iprintln( "[player] * ^;auto prone enabled" );
+            }
+            else
+            {
+                self notify("stop_auto_prone");
+                self iprintln( "[player] * ^1auto prone disabled" );
+            }
+        }
+    }
+}
+
 auto_prone()
 {
     self endon("disconnect");
@@ -2171,6 +2215,90 @@ loop_auto_prone()
         wait .01;
     }
 }
+
+watch_auto_reload() 
+{
+    self endon("disconnect");
+    level endon("game_ended");
+
+    var_0 = getdvar( "autoreload", "" );
+
+    for (;;)
+    {
+        var_1 = getdvarint( "autoreload", 0 );
+
+        if ( var_1 != var_0 )
+        {
+            var_0 = var_1;
+
+            if ( var_1 == 1 )
+            {
+                self thread auto_reload();
+                self iprintln( "[player] * ^;auto reload enabled" );
+            }
+            else
+            {
+                self notify("stop_auto_prone");
+                self iprintln( "[player] * ^1auto reload disabled" );
+            }
+        }
+    }
+}
+
+auto_reload()
+{
+    self endon("stop_auto_reload");
+    level waittill("game_ended");
+
+    x = self getcurrentweapon();
+    self setweaponammoclip(x, 0);
+}
+
+watch_refill_bind() 
+{
+    self endon("disconnect");
+    level endon("game_ended");
+
+    var_0 = getdvar( "refillbind", "" );
+
+    for (;;)
+    {
+        var_1 = getdvarint( "refillbind", 0 );
+
+        if ( var_1 != var_0 )
+        {
+            var_0 = var_1;
+
+            if ( var_1 == 1 )
+            {
+                self thread refill_bind();
+                self iprintln( "[player] * ^;refill bind enabled" );
+            }
+            else
+            {
+                self notify("stop_refill");
+                self iprintln( "[player] * ^1refill bind disabled" );
+            }
+        }
+    }
+}
+
+refill_bind()
+{
+    level endon("game_ended");
+    self endon("disconnect");
+
+    for(;;)
+    {
+        self waittill("+melee_zoom");
+        if (self getstance() == "prone")
+        {
+            self iprintln("[weapon] * all weapon ammo refilled");
+            waittillframeend;
+        }
+    }
+}
+
 
 // utility
 
@@ -2243,7 +2371,7 @@ is_valid_weapon(weapon)
     if (!isdefined (weapon))
         return false;
 
-    weapon_class = getweaponclass(weapon);
+    weapon_class = weaponclass(weapon);
     if (weapon_class == "sniper" || issubstr( weapon, "sa58_" ) || weaponisboltaction(weapon))
         return true;
 
