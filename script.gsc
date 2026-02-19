@@ -42,7 +42,7 @@ setup_dvars()
 
     setdvarifuninitialized("instaswaps_time", 0.1);
     setdvarifuninitialized("autoprone_mode", "air");
-    setdvarifuninitialized("aimbot_range", 750);
+    setdvarifuninitialized("aimbot_range", 1000);
 }
 
 on_player_connect()
@@ -106,7 +106,7 @@ on_player_spawned()
             self save_spawn();
 
         self play("ui_perk_purchase");
-        self iprintlnbold("^+neura iw8 ^7* ^6@nyli2b");
+        self iprintlnbold("^+neura iw8 ^7* ^+@nyli2b");
         self iprintln("ߝ [game] * ^+finished countdown.. continuing..");
     }
 }
@@ -427,7 +427,7 @@ aimbot(args)
 
 aimbot_weapon(args)
 {
-    if ( int(args[0]) == 1 )
+    if (int(args[0]) == 1)
     {
         setdvar("aimbot_weapon", self getcurrentweapon());
         self iprintln( "ߝ [player] * ^+aimbot weapon set to " + getdvar("aimbot_weapon"));
@@ -438,7 +438,6 @@ aimbot_weapon(args)
         self iprintln( "ߝ [player] * ^+aimbot weapon unset");
     }
 }
-
 
 // this eb works actually really well on here lol
 do_aimbot()
@@ -551,6 +550,7 @@ drop_util(args)
 
     switch (args[0])
     {
+        /*
         case "canswap":
         case "cs":
         case "can":
@@ -560,25 +560,25 @@ drop_util(args)
             self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(choice);
             self dropweapon(choice);
             break;
-        case "altcan":
-        case "ac":
-            choice = get_random_weapon();
-            self scripts\cp_mp\utility\inventory_utility::_giveweapon(choice);
-            self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(choice);
-            self dropweapon(choice);
-            break;
+        */
         case "current":
         case "curr":
             self dropitem(current);
+            self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(self getweaponslistprimaries()[0]);
+            self play("scavenger_pack_pickup");
             break;
         case "primary":
             self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(pw);
             self dropitem(current);
+            self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(self getweaponslistprimaries()[0]);
+            self play("scavenger_pack_pickup");
             break;
         case "alt":
         case "secondary":
             self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(alt);
             self dropitem(alt);
+            self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(self getweaponslistprimaries()[0]);
+            self play("scavenger_pack_pickup");
             break;
         case "all":
             foreach (item in self getweaponslistprimaries())
@@ -587,12 +587,12 @@ drop_util(args)
                 wait 0.05;
                 self dropitem(item);
             }
+            self play("scavenger_pack_pickup");
             break;
         default:
-            self iprintln("ߝ [game] * ^+use canswap, current, alt, or all..");
+            self iprintln("ߝ [game] * ^+use canswap, current, alt, primary, or all..");
             break;        
     }
-    self play("scavenger_pack_pickup");
 }
 
 setup(args)
@@ -1752,6 +1752,7 @@ is_valid_weapon(weapon)
     if (!isdefined (weapon))
         return false;
 
+    // snipers, marksman rifles, all bolt actions
     weapon_class = weaponclass(weapon);
     if (weapon_class == "sniper" || weapon_class == "dmr" || weaponisboltaction(weapon))
         return true;
@@ -1780,7 +1781,7 @@ monitor_class()
             continue;
 
         var_01 = var_01 + 1;
-        self.class = var_01;
+        self.class = var_01; // shocker
 
         scripts\mp\class::setclass(self.pers["class"]);
         self.tag_stowed_back = undefined;
@@ -1839,8 +1840,9 @@ round_manager() // mw19 goes to 6 rounds. also doesnt watch killcams on level ?
 {
     random_round_axis = randomint(5);
     random_round_ally = randomint(5);
-    rounds_played = random_round_axis + random_round_ally;
+    rounds_played = (random_round_axis + random_round_ally);
 
+    self waittill("killcam_ended");
     game["roundsWon"]["axis"] = random_round_axis;
     game["roundsWon"]["allies"] = random_round_ally;
     game["teamScores"]["allies"] = random_round_ally;
@@ -1918,13 +1920,6 @@ list(key)
 get_players(team)
 {
     return scripts\mp\utility\teams::getteamdata( team, "players" );
-}
-
-get_random_weapon()
-{
-    items = level.allweapons;
-    choice = items[randomint(items.size)];
-    return choice;
 }
 
 play(sound, type) // jukeboxxxx
