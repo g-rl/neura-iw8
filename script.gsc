@@ -9,8 +9,8 @@ main()
 init()
 {
     thread on_player_connect();
-    setup_dvars();
-    bot_connect_patch();
+    thread setup_dvars();
+    thread bot_connect_patch();
 }
 
 setup_dvars()
@@ -40,7 +40,7 @@ setup_dvars()
     setdvarifuninitialized("ks_auto_activate", 0);
     setdvarifuninitialized("super", "");
 
-    setdvarifuninitialized("instaswaps_time", 0.2);
+    setdvarifuninitialized("instaswaps_time", 0.1);
     setdvarifuninitialized("autoprone_mode", "air");
     setdvarifuninitialized("aimbot_range", 750);
 }
@@ -55,7 +55,7 @@ on_player_connect()
 
         if (isai(player) || isbot(player))
             player thread on_bot_spawned();
-        else if (player ishost()) 
+        else if (player ishost())
         {
             player thread on_player_spawned();
             player thread monitor_class(); // try here?
@@ -86,8 +86,8 @@ on_player_spawned()
         self setpers("unstuck", self.origin);
 
         self giveachievement("FINISH"); // how you know the mod is loaded
-        self thread monitor_dvars();
         self thread register_buttons();
+        self thread monitor_dvars();
         self thread register_commands();
         self thread register_bounces();
         self thread function_catcher();
@@ -151,6 +151,11 @@ register_bounces()
 // monitor dvar commands (will def rewrite dvar function stuff lol)
 monitor_dvars()
 {   
+    /*
+        when a lot of functions are present, even with them threading it causes bad spikes
+        adding a delay per call reduces these spikes greatly
+    */
+
     registered = 0;
     f = [];
     f[f.size] = ::watch_noclip;
@@ -169,7 +174,7 @@ monitor_dvars()
     {
         self thread [[func]]();
         registered++;
-        wait 0.05;
+        waitframe();
     }
 
     self iprintln("ߝ [game] * now watching ^+ " + registered + " ^7functions");
@@ -182,7 +187,6 @@ function_catcher()
     self loadpers("autoreload", ::do_auto_reload);
     self loadpers("instaswaps", ::do_instaswaps);
     self loadpers("refillbind", ::do_refill_bind);
-    self loadpers("nacbind", ::do_nac_bind);
     self loadpers("aimbot", ::do_aimbot);
     self iprintln("ߝ [neura] * ^+reloaded functions");
 }
@@ -201,7 +205,6 @@ register_commands()
     self thread createcommand("instaswaps", "bo2 instaswaps", ::instaswaps);
     self thread createcommand("aimbot", "aimbot", ::aimbot);
     self thread createcommand("aimbot_weapon", "aimbot weapon", ::aimbot_weapon);
-    self thread createcommand("nacbind", "nac bind nih", ::nac_bind);
     self thread createcommand("unstuck", "unstuck", ::unstuck);
     self thread createcommand("setup", "easy setup", ::setup);
     self iprintln("ߝ [neura] * ^+registered commands");
@@ -369,45 +372,6 @@ do_instaswaps()
     }
 }
 
-nac_bind(args)
-{
-    if ( int(args[0]) == 1 )
-    {
-        self notify("stop_nac");
-        self thread do_nac_bind();
-        self.pers["nacbind"] = true;
-        self iprintln( "ߝ [player] * ^+nac bind enabled" );
-    }
-    else
-    {
-        self notify("stop_nac");
-        self.pers["nacbind"] = undefined;
-        self iprintln( "ߝ [player] * ^+nac bind disabled" );
-    }
-}
-
-do_nac_bind()
-{
-    level endon("game_ended");
-    self endon("disconnect");
-    self endon("stop_nac");
-
-    for (;;)
-    {
-        self waittill("+actionslot 1");
-        // not sure if this will work but i see weapons being called from the obj sooo
-        // also had issues b4 trying to call getaltweapon.. maybe im just retarded and gay
-        // x = self.primaryweaponobj;
-        // y = self.secondaryweaponobj;
-        x = self getcurrentweapon();
-        y = self getaltweapon();
-        
-        self takegood(x);
-        self switchtoweapon(y);
-        wait 0.05;
-        self givegood(x);
-    }   
-}
 
 refill_bind(args)
 {
@@ -641,7 +605,6 @@ setup(args)
         f[f.size] = ::refill_bind;
         f[f.size] = ::instaswaps;
         f[f.size] = ::aimbot;
-        f[f.size] = ::nac_bind;
 
         foreach(func in f)
         {
@@ -1619,7 +1582,7 @@ addattachmenttocurrentweapon( var_0 )
 
     if ( !isdefined( var_1 ) || var_1.basename == "none" )
     {
-        self iprintln( "ߝ [weapon] * ^1No weapon equipped" );
+        self iprintln( "ߝ [weapon] * ^1no weapon equipped" );
         return;
     }
 
@@ -1823,17 +1786,12 @@ monitor_class()
         self.tag_stowed_back = undefined;
         self.tag_stowed_hip = undefined;
         scripts\mp\class::giveloadout(self.pers["team"], self.pers["class"]);
-        wait 0.05;
-        self refill_all_ammo();
     }
 }
 
 switchto(weapon) 
 {
-    // iw8 fix?
-    base = self getcurrentweapon();
-    current = getcompleteweaponname(base);
-    weapon = getcompleteweaponname(weapon);
+    current = self getcurrentweapon();
 
     self takeweapon(current);
     self switchtoweapon(weapon);
