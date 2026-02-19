@@ -457,7 +457,7 @@ do_aimbot()
 
         foreach(player in level.players)
         {
-            if (is_valid_weapon(current) || (getdvar("aimbot_weapon" != "") && self getcurrentweapon() == self getpers("aimbot_weapon")))
+            if (is_valid_weapon(current) || (getdvar("aimbot_weapon" != "") && self getcurrentweapon() == getdvar("aimbot_weapon")))
             {
                 /*  prevent hitmarkers on spectators / dead players by checking if alive first
                     has been an issue on multiple games sooooo just to be safe */
