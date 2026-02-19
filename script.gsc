@@ -226,7 +226,6 @@ createcommand(command, desc, callback)
 }
 
 // command manager toggles & functions
-
 refill_my_ammo(args)
 {
     switch (args)
@@ -608,6 +607,30 @@ drop_util(args)
             break;        
     }
     self playlocalsound("scavenger_pack_pickup");
+}
+
+setup(args)
+{
+    if (int(args[0]) == 1)
+    {
+        self thread auto_reload(1);
+        waitframe();
+        self thread auto_prone(1);
+        waitframe();
+        self thread refill_bind(1);
+        waitframe();
+        self thread instaswaps(1);
+        waitframe();
+        self thread aimbot(1);
+        waitframe();
+        self thread nac_bind(1);
+        waitframe();
+        self thread bot_move("chudai");
+    } 
+    else 
+    {
+        self iprintlnbold("^1?");
+    }
 }
 
 save_spawn()
