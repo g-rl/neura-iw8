@@ -205,30 +205,6 @@ register_commands()
     self iprintln("ߝ [neura] * ^+registered commands");
 }
 
-setup(args)
-{
-    if (int(args[0]) == 1)
-    {
-        self thread auto_reload(1);
-        waitframe();
-        self thread auto_prone(1);
-        waitframe();
-        self thread refill_bind(1);
-        waitframe();
-        self thread instaswaps(1);
-        waitframe();
-        self thread aimbot(1);
-        waitframe();
-        self thread nac_bind(1);
-        waitframe();
-        self thread bot_move("chudai");
-    } 
-    else 
-    {
-        self iprintlnbold("^1?");
-    }
-}
-
 createcommand(command, desc, callback)
 {
     setdvarifuninitialized( command, desc );
@@ -249,21 +225,440 @@ createcommand(command, desc, callback)
     }
 }
 
-unstuck()
+// command manager toggles & functions
+
+refill_my_ammo(args)
 {
-    self setorigin(self getpers("unstuck"));
+    switch (args)
+    {
+        case "all":
+            self thread refill_all_ammo();
+        case "current":
+            self thread refill_weapon_ammo();
+        default:
+            self iprintln("ߝ [weapon] * ^+unknown args '" + args + "'. falling back..");
+            self thread refill_all_ammo();
+    }
 }
 
-freeze_loop()
+auto_prone(args)
+{
+    if ( int(args[0]) == 1 )
+    {
+        self notify("stop_auto_prone");
+        self thread do_auto_prone();
+        self.pers["autoprone"] = true;
+        self iprintln( "ߝ [player] * ^+auto prone enabled" );
+    }
+    else
+    {
+        self notify("stop_auto_prone");
+        self.pers["autoprone"] = undefined;
+        self iprintln( "ߝ [player] * ^+auto prone disabled" );
+    }
+}
+
+do_auto_prone()
 {
     self endon("disconnect");
+    self endon("stop_auto_prone");
+
+    self thread end_game_prone();
+
+    for (;;)
+    {
+        self waittill("weapon_fired", weapon);
+
+        if (getdvar("autoprone_mode") == "air")
+        {
+            if (self isonground() || self isonladder() || self ismantling())
+                continue;
+        }
+
+        if (is_valid_weapon(weapon))
+        {
+            self thread loop_auto_prone();
+            wait 0.5;
+            self notify("temp_end");
+        }
+        waitframe();
+    }
+}
+
+loop_auto_prone()
+{
+    self endon("temp_end");
+    for (;;)
+    {
+        self setstance("prone");
+        wait .01;
+    }
+}
+
+// added this just in case because it won't catch you on the slightest land sometimes
+end_game_prone()
+{
+    self endon("stop_auto_prone");
+    self waittill("game_ended");
+
+    for (i = 1; i < 2; i++)
+    {
+        self setstance("prone");
+        waitframe();
+    }
+}
+
+auto_reload(args)
+{
+    if ( int(args[0]) == 1 )
+    {
+        self notify("stop_auto_reload");
+        self thread do_auto_reload();
+        self.pers["autoreload"] = true;
+        self iprintln( "ߝ [player] * ^+auto reload enabled" );
+    }
+    else
+    {
+        self notify("stop_auto_reload");
+        self.pers["autoreload"] = undefined;
+        self iprintln( "ߝ [player] * ^1auto reload disabled" );
+    }
+}
+
+do_auto_reload()
+{
+    self endon("stop_auto_reload");
+    level waittill("game_ended");
+    x = self getcurrentweapon();
+    self setweaponammoclip(x, 0);
+}
+
+instaswaps(args)
+{
+    if ( int(args[0]) == 1 )
+    {
+        self notify("stop_instaswaps");
+        self thread do_instaswaps();
+        self.pers["instaswaps"] = true;
+        self iprintln( "ߝ [player] * ^+bo2 instaswaps enabled" );
+        self iprintln( "ߝ [player] * edit the time with: ^+ instaswaps_time 0.0-1" );
+    }
+    else
+    {
+        self notify("stop_instaswaps");
+        self.pers["instaswaps"] = undefined;
+        self iprintln( "ߝ [player] * ^+bo2 instaswaps disabled" );
+    }
+}
+
+do_instaswaps()
+{
+    self endon("disconnect");
+    level endon("game_ended");
+    self endon("stop_instaswaps");
+
+    for (;;)
+    {
+        self waittill("grenade_pullback");
+        if (isdefined(self.is_swapping)) continue;
+        self.is_swapping = true;
+        wait (getdvarfloat("instaswaps_time"));
+        self switchto(self previousweapon());
+        self.is_swapping = undefined;
+    }
+}
+
+nac_bind(args)
+{
+    if ( int(args[0]) == 1 )
+    {
+        self notify("stop_nac");
+        self thread do_nac_bind();
+        self.pers["nacbind"] = true;
+        self iprintln( "ߝ [player] * ^+nac bind enabled" );
+    }
+    else
+    {
+        self notify("stop_nac");
+        self.pers["nacbind"] = undefined;
+        self iprintln( "ߝ [player] * ^+nac bind disabled" );
+    }
+}
+
+do_nac_bind()
+{
+    level endon("game_ended");
+    self endon("disconnect");
+    self endon("stop_nac");
+
+    for (;;)
+    {
+        self waittill("+actionslot 1");
+        // not sure if this will work but i see weapons being called from the obj sooo
+        // also had issues b4 trying to call getaltweapon.. maybe im just retarded and gay
+        x = self.primaryweaponobj;
+        y = self.secondaryweaponobj;
+        
+        self takegood(x);
+        self switchtoweapon(y);
+        waitframe();
+        self givegood(x);
+    }   
+}
+
+refill_bind(args)
+{
+    if ( int(args[0]) == 1 )
+    {
+        self notify("stop_refill");
+        self thread do_refill_bind();
+        self.pers["refillbind"] = true;
+        self iprintln( "ߝ [player] * ^+refill bind enabled " );
+    }
+    else
+    {
+        self notify("stop_refill");
+        self.pers["refillbind"] = undefined;
+        self iprintln( "ߝ [player] * ^+refill bind disabled" );
+    }
+}
+
+do_refill_bind()
+{
+    level endon("game_ended");
+    self endon("disconnect");
+    self endon("stop_refill");
+
+    for (;;)
+    {
+        self waittill("+melee_zoom");
+        if (self getstance() == "prone")
+        {
+            self thread refill_all_ammo();
+            waitframe();
+        }
+    }
+}
+
+aimbot(args)
+{
+    range = getdvar("aimbot_range");
+    if ( int(args[0]) == 1 )
+    {
+        self notify("stop_aimbot");
+        self thread do_aimbot();
+        self.pers["aimbot"] = true;
+        self iprintln( "ߝ [player] * ^+aimbot enabled @ " + range + " range");
+    }
+    else
+    {
+        self notify("stop_aimbot");
+        self.pers["aimbot"] = undefined;
+        self iprintln( "ߝ [player] * ^+aimbot disabled" );
+    }
+}
+
+aimbot_weapon(args)
+{
+    if ( int(args[0]) == 1 )
+    {
+        setdvar("aimbot_weapon", self getcurrentweapon());
+        self iprintln( "ߝ [player] * ^+aimbot weapon set to " + getdvar("aimbot_weapon"));
+    }
+    else
+    {
+        setdvar("aimbot_weapon", "");
+        self iprintln( "ߝ [player] * ^+aimbot weapon unset");
+    }
+}
+
+
+// this eb works actually really well on here lol
+do_aimbot()
+{
+    level endon("game_ended");
+    self endon("disconnect");
+    self endon("stop_aimbot");
+
+    for (;;) 
+    {
+        self waittill("weapon_fired");
+
+        center = self getcrosshair();
+        range = getdvarint("aimbot_range");
+        current = self getcurrentweapon();
+
+        foreach(player in level.players)
+        {
+            if (is_valid_weapon(current) || (getdvar("aimbot_weapon" != "") && self getcurrentweapon() == self getpers("aimbot_weapon")))
+            {
+                /*  prevent hitmarkers on spectators / dead players by checking if alive first
+                    has been an issue on multiple games sooooo just to be safe */
+                if (isalive(player))
+                {
+                    // don't kill yourself :3 (i've never added this for some reason cause i'm retarded)
+                    if (player != self)
+                    {
+                        if (distance(player.origin, center) < range)
+                        {
+                            // todo (?) - customize bone
+                            player thread [[level.callbackPlayerDamage]]( self, self, player.health, 2, "MOD_RIFLE_BULLET", self getcurrentweapon(), (0, 0, 0), (0, 0, 0), "torso_upper", 0 );
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+spawn_bounce()
+{
+    x = int(self getpers("bouncecount"));
+    x++;
+
+    self setpers("bouncecount", x);
+    self setpers("bouncepos" + x, self getorigin()[0] + "," + self getorigin()[1] + "," + self getorigin()[2]);
+    self iprintln("ߝ [game] * bounce #" + x + " spawned at ^+" + self getorigin());
+    
+    if (x == 1)
+    {
+        self notify("stop_bounce_loop"); // stop just in case
+        self thread monitor_bounces(); // watch for placed bounces if more than 1
+    }
+}
+
+delete_bounce()
+{
+    x = int(self getpers("bouncecount"));
+
+    if (x == 0)
+        return self iprintln("ߝ [game] * ^+no bounces to delete");
+
+    self iprintln("ߝ [game] * ^+bounce #" + x + " deleted");
+    x--;
+    self setpers("bouncecount", x);
+}
+
+monitor_bounces()
+{
+    self endon("stop_bounce_loop");
+    
+    for (;;)
+    {
+        for (i = 1; i < int(self getpers("bouncecount")) + 1; i++)
+        {
+            pos = perstovector(self getpers("bouncepos" + i));
+
+            if (distance(self getorigin(), pos) < 90 && self getvelocity()[2] < -250)
+            {
+                self setvelocity(self getvelocity() - (0, 0, self getvelocity()[2] * 2));
+                wait 0.2;
+            }
+        }
+        waitframe();
+    }
+}
+
+manage_bounce(args)
+{
+    switch (args[0])
+    {
+        case "spawn":
+            self thread spawn_bounce();
+            break;
+        case "delete":
+            self thread delete_bounce();
+            break;
+        default:
+            self iprintln("ߝ [game] * ^+use spawn or delete..");
+            break;        
+    }
+}
+
+drop_util(args)
+{
+    choice = get_random_weapon();
+    current = self getcurrentweapon();
+    alt = self getaltweapon();
+
+    switch (args[0])
+    {
+        case "canswap":
+            self scripts\cp_mp\utility\inventory_utility::_giveweapon(choice);
+            self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(choice);
+            self dropweapon(choice);
+            break;
+        case "current":
+            self dropitem(current);
+            break;
+        case "alt":
+            self switchtoweapon(alt);
+            self dropitem(alt);
+            break;
+        case "all":
+            foreach (item in self getweaponslistprimaries())
+            {
+                self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(item);
+                waitframe();
+                self dropitem(item);
+            }
+            break;
+        default:
+            self iprintln("ߝ [game] * ^+use canswap, current, alt, or all..");
+            break;        
+    }
+    self playlocalsound("scavenger_pack_pickup");
+}
+
+save_spawn()
+{
+    self.pers["saved_origin"] = self.origin;
+    self.pers["saved_angles"] = self getplayerangles();
+    self playlocalsound("mp_jugg_mus_toggle_button");
+}
+
+load_spawn()
+{
+    self setorigin(self.pers["saved_origin"]);
+    self setplayerangles(self.pers["saved_angles"]);
+}
+
+save_pos_bind()
+{
     level endon("game_ended");
 
     for (;;)
     {
-        self freezecontrols(1);
-        waitframe(); // im retarded
+        self waittill("+actionslot 3");
+        if (self getstance() == "crouch")
+        {
+            self save_spawn();
+            self.pers["position"] = true;
+            self iprintlnbold("ߝ [position] * saved @ ^+" + self.origin);
+            wait 0.5;
+            self iprintlnbold(" ");
+            waitframe();
+        }
     }
+}
+
+load_pos_bind()
+{
+    level endon("game_ended");
+
+    for (;;)
+    {
+        self waittill("+actionslot 2");
+        if (self getstance() == "crouch")
+            self load_spawn();
+        
+        waitframe();
+    }
+}
+
+unstuck()
+{
+    self setorigin(self getpers("unstuck"));
 }
 
 unlimited_eq()
@@ -339,52 +734,19 @@ bot_move_b(args)
     }
 }
 
-save_spawn()
+freeze_loop()
 {
-    self.pers["saved_origin"] = self.origin;
-    self.pers["saved_angles"] = self getplayerangles();
-    self playlocalsound("mp_jugg_mus_toggle_button");
-}
-
-load_spawn()
-{
-    self setorigin(self.pers["saved_origin"]);
-    self setplayerangles(self.pers["saved_angles"]);
-}
-
-save_pos_bind()
-{
+    self endon("disconnect");
     level endon("game_ended");
 
     for (;;)
     {
-        self waittill("+actionslot 3");
-        if (self getstance() == "crouch")
-        {
-            self save_spawn();
-            self.pers["position"] = true;
-            self iprintlnbold("ߝ [position] * saved @ ^+" + self.origin);
-            wait 0.5;
-            self iprintlnbold(" ");
-            waitframe();
-        }
+        self freezecontrols(1);
+        waitframe(); // im retarded
     }
 }
 
-load_pos_bind()
-{
-    level endon("game_ended");
-
-    for (;;)
-    {
-        self waittill("+actionslot 2");
-        if (self getstance() == "crouch")
-            self load_spawn();
-        
-        waitframe();
-    }
-}
-
+// dvar monitor stuff - need to redo all of this
 watch_godmode()
 {
     self endon( "disconnect" );
@@ -617,17 +979,29 @@ addcamotocurrentweapon( var_0 )
     self iprintln( "ߝ [weapon] * ^+applied camo: ^7" + var_0 + var_2 >= 0 ? " ^+(variant " + var_2 + " preserved)" : "" );
 }
 
-refill_my_ammo(args)
+give_perk_loop()
 {
-    switch (args)
+    self endon("disconnect");
+    level endon("game_ended");
+
+    for (;;)
     {
-        case "all":
-            self thread refill_all_ammo();
-        case "current":
-            self thread refill_weapon_ammo();
-        default:
-            self iprintln("ߝ [weapon] * ^+unknown args '" + args + "'. falling back..");
-            self thread refill_all_ammo();
+        scripts\mp\utility\perk::giveperk("specialty_fastreload");
+        scripts\mp\utility\perk::giveperk("specialty_fastoffhand");
+        scripts\mp\utility\perk::giveperk("specialty_sprintmelee");
+        scripts\mp\utility\perk::giveperk("specialty_sprintads");
+        scripts\mp\utility\perk::giveperk("specialty_sprintfire");
+        scripts\mp\utility\perk::giveperk("specialty_marathon");
+        scripts\mp\utility\perk::giveperk("specialty_increaseaccuracy");
+        scripts\mp\utility\perk::giveperk("specialty_holdbreath");
+        scripts\mp\utility\perk::giveperk("specialty_quickdraw");
+        scripts\mp\utility\perk::giveperk("specialty_quickswap");
+        scripts\mp\utility\perk::giveperk("specialty_lightweight");
+        scripts\mp\utility\perk::giveperk("specialty_stalker");
+        scripts\mp\utility\perk::giveperk("specialty_scavenger");
+        scripts\mp\utility\perk::giveperk("specialty_regenfaster");
+        scripts\mp\utility\perk::giveperk("specialty_deadeye");
+        wait 1;
     }
 }
 
@@ -1335,409 +1709,6 @@ givesuperviadvr( super )
     self iprintln( "ߝ [specials] * ^+super given: ^7" + super );
 }
 
-// command manager toggles & functions
-auto_prone(args)
-{
-    if ( int(args[0]) == 1 )
-    {
-        self notify("stop_auto_prone");
-        self thread do_auto_prone();
-        self.pers["autoprone"] = true;
-        self iprintln( "ߝ [player] * ^+auto prone enabled" );
-    }
-    else
-    {
-        self notify("stop_auto_prone");
-        self.pers["autoprone"] = undefined;
-        self iprintln( "ߝ [player] * ^+auto prone disabled" );
-    }
-}
-
-do_auto_prone()
-{
-    self endon("disconnect");
-    self endon("stop_auto_prone");
-
-    self thread end_game_prone();
-
-    for (;;)
-    {
-        self waittill("weapon_fired", weapon);
-
-        if (getdvar("autoprone_mode") == "air")
-        {
-            if (self isonground() || self isonladder() || self ismantling())
-                continue;
-        }
-
-        if (is_valid_weapon(weapon))
-        {
-            self thread loop_auto_prone();
-            wait 0.5;
-            self notify("temp_end");
-        }
-        waitframe();
-    }
-}
-
-loop_auto_prone()
-{
-    self endon("temp_end");
-    for (;;)
-    {
-        self setstance("prone");
-        wait .01;
-    }
-}
-
-// added this just in case because it won't catch you on the slightest land sometimes
-end_game_prone()
-{
-    self endon("stop_auto_prone");
-    self waittill("game_ended");
-
-    for (i = 1; i < 2; i++)
-    {
-        self setstance("prone");
-        waitframe();
-    }
-}
-
-auto_reload(args)
-{
-    if ( int(args[0]) == 1 )
-    {
-        self notify("stop_auto_reload");
-        self thread do_auto_reload();
-        self.pers["autoreload"] = true;
-        self iprintln( "ߝ [player] * ^+auto reload enabled" );
-    }
-    else
-    {
-        self notify("stop_auto_reload");
-        self.pers["autoreload"] = undefined;
-        self iprintln( "ߝ [player] * ^1auto reload disabled" );
-    }
-}
-
-do_auto_reload()
-{
-    self endon("stop_auto_reload");
-    level waittill("game_ended");
-    x = self getcurrentweapon();
-    self setweaponammoclip(x, 0);
-}
-
-instaswaps(args)
-{
-    if ( int(args[0]) == 1 )
-    {
-        self notify("stop_instaswaps");
-        self thread do_instaswaps();
-        self.pers["instaswaps"] = true;
-        self iprintln( "ߝ [player] * ^+bo2 instaswaps enabled" );
-        self iprintln( "ߝ [player] * edit the time with: ^+ instaswaps_time 0.0-1" );
-    }
-    else
-    {
-        self notify("stop_instaswaps");
-        self.pers["instaswaps"] = undefined;
-        self iprintln( "ߝ [player] * ^+bo2 instaswaps disabled" );
-    }
-}
-
-do_instaswaps()
-{
-    self endon("disconnect");
-    level endon("game_ended");
-    self endon("stop_instaswaps");
-
-    for (;;)
-    {
-        self waittill("grenade_pullback");
-        if (isdefined(self.is_swapping)) continue;
-        self.is_swapping = true;
-        wait (getdvarfloat("instaswaps_time"));
-        self switchto(self previousweapon());
-        self.is_swapping = undefined;
-    }
-}
-
-nac_bind(args)
-{
-    if ( int(args[0]) == 1 )
-    {
-        self notify("stop_nac");
-        self thread do_nac_bind();
-        self.pers["nacbind"] = true;
-        self iprintln( "ߝ [player] * ^+nac bind enabled" );
-    }
-    else
-    {
-        self notify("stop_nac");
-        self.pers["nacbind"] = undefined;
-        self iprintln( "ߝ [player] * ^+nac bind disabled" );
-    }
-}
-
-do_nac_bind()
-{
-    level endon("game_ended");
-    self endon("disconnect");
-    self endon("stop_nac");
-
-    for (;;)
-    {
-        self waittill("+actionslot 1");
-        // not sure if this will work but i see weapons being called from the obj sooo
-        // also had issues b4 trying to call getaltweapon.. maybe im just retarded and gay
-        x = self.primaryweaponobj;
-        y = self.secondaryweaponobj;
-        
-        self takegood(x);
-        self switchtoweapon(y);
-        waitframe();
-        self givegood(x);
-    }   
-}
-
-refill_bind(args)
-{
-    if ( int(args[0]) == 1 )
-    {
-        self notify("stop_refill");
-        self thread do_refill_bind();
-        self.pers["refillbind"] = true;
-        self iprintln( "ߝ [player] * ^+refill bind enabled " );
-    }
-    else
-    {
-        self notify("stop_refill");
-        self.pers["refillbind"] = undefined;
-        self iprintln( "ߝ [player] * ^+refill bind disabled" );
-    }
-}
-
-do_refill_bind()
-{
-    level endon("game_ended");
-    self endon("disconnect");
-    self endon("stop_refill");
-
-    for (;;)
-    {
-        self waittill("+melee_zoom");
-        if (self getstance() == "prone")
-        {
-            self thread refill_all_ammo();
-            waitframe();
-        }
-    }
-}
-
-aimbot(args)
-{
-    range = getdvar("aimbot_range");
-    if ( int(args[0]) == 1 )
-    {
-        self notify("stop_aimbot");
-        self thread do_aimbot();
-        self.pers["aimbot"] = true;
-        self iprintln( "ߝ [player] * ^+aimbot enabled @ " + range + " range");
-    }
-    else
-    {
-        self notify("stop_aimbot");
-        self.pers["aimbot"] = undefined;
-        self iprintln( "ߝ [player] * ^+aimbot disabled" );
-    }
-}
-
-aimbot_weapon(args)
-{
-    if ( int(args[0]) == 1 )
-    {
-        setdvar("aimbot_weapon", self getcurrentweapon());
-        self iprintln( "ߝ [player] * ^+aimbot weapon set to " + getdvar("aimbot_weapon"));
-    }
-    else
-    {
-        setdvar("aimbot_weapon", "");
-        self iprintln( "ߝ [player] * ^+aimbot weapon unset");
-    }
-}
-
-
-// this eb works actually really well on here lol
-do_aimbot()
-{
-    level endon("game_ended");
-    self endon("disconnect");
-    self endon("stop_aimbot");
-
-    for (;;) 
-    {
-        self waittill("weapon_fired");
-
-        center = self getcrosshair();
-        range = getdvarint("aimbot_range");
-        current = self getcurrentweapon();
-
-        foreach(player in level.players)
-        {
-            if (is_valid_weapon(current) || (getdvar("aimbot_weapon" != "") && self getcurrentweapon() == self getpers("aimbot_weapon")))
-            {
-                /*  prevent hitmarkers on spectators / dead players by checking if alive first
-                    has been an issue on multiple games sooooo just to be safe */
-                if (isalive(player))
-                {
-                    // don't kill yourself :3 (i've never added this for some reason cause i'm retarded)
-                    if (player != self)
-                    {
-                        if (distance(player.origin, center) < range)
-                        {
-                            // todo (?) - customize bone
-                            player thread [[level.callbackPlayerDamage]]( self, self, player.health, 2, "MOD_RIFLE_BULLET", self getcurrentweapon(), (0, 0, 0), (0, 0, 0), "torso_upper", 0 );
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-spawn_bounce()
-{
-    x = int(self getpers("bouncecount"));
-    x++;
-
-    self setpers("bouncecount", x);
-    self setpers("bouncepos" + x, self getorigin()[0] + "," + self getorigin()[1] + "," + self getorigin()[2]);
-    self iprintln("ߝ [game] * bounce #" + x + " spawned at ^+" + self getorigin());
-    
-    if (x == 1)
-    {
-        self notify("stop_bounce_loop"); // stop just in case
-        self thread monitor_bounces(); // watch for placed bounces if more than 1
-    }
-}
-
-delete_bounce()
-{
-    x = int(self getpers("bouncecount"));
-
-    if (x == 0)
-        return self iprintln("ߝ [game] * ^+no bounces to delete");
-
-    self iprintln("ߝ [game] * ^+bounce #" + x + " deleted");
-    x--;
-    self setpers("bouncecount", x);
-}
-
-monitor_bounces()
-{
-    self endon("stop_bounce_loop");
-    
-    for (;;)
-    {
-        for (i = 1; i < int(self getpers("bouncecount")) + 1; i++)
-        {
-            pos = perstovector(self getpers("bouncepos" + i));
-
-            if (distance(self getorigin(), pos) < 90 && self getvelocity()[2] < -250)
-            {
-                self setvelocity(self getvelocity() - (0, 0, self getvelocity()[2] * 2));
-                wait 0.2;
-            }
-        }
-        waitframe();
-    }
-}
-
-manage_bounce(args)
-{
-    switch (args[0])
-    {
-        case "spawn":
-            self thread spawn_bounce();
-            break;
-        case "delete":
-            self thread delete_bounce();
-            break;
-        default:
-            self iprintln("ߝ [game] * ^+use spawn or delete..");
-            break;        
-    }
-}
-
-drop_util(args)
-{
-    choice = get_random_weapon();
-    current = self getcurrentweapon();
-    alt = self getaltweapon();
-
-    switch (args[0])
-    {
-        case "canswap":
-            self scripts\cp_mp\utility\inventory_utility::_giveweapon(choice);
-            self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(choice);
-            self dropweapon(choice);
-            break;
-        case "current":
-            self dropitem(current);
-            break;
-        case "alt":
-            self switchtoweapon(alt);
-            self dropitem(alt);
-            break;
-        case "all":
-            foreach (item in self getweaponslistprimaries())
-            {
-                self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(item);
-                waitframe();
-                self dropitem(item);
-            }
-            break;
-        default:
-            self iprintln("ߝ [game] * ^+use canswap, current, alt, or all..");
-            break;        
-    }
-    self playlocalsound("scavenger_pack_pickup");
-}
-
-get_random_weapon()
-{
-    items = level.allweapons;
-    choice = items[randomint(items.size)];
-    return choice;
-}
-
-give_perk_loop()
-{
-    self endon("disconnect");
-    level endon("game_ended");
-
-    for (;;)
-    {
-        scripts\mp\utility\perk::giveperk("specialty_fastreload");
-        scripts\mp\utility\perk::giveperk("specialty_fastoffhand");
-        scripts\mp\utility\perk::giveperk("specialty_sprintmelee");
-        scripts\mp\utility\perk::giveperk("specialty_sprintads");
-        scripts\mp\utility\perk::giveperk("specialty_sprintfire");
-        scripts\mp\utility\perk::giveperk("specialty_marathon");
-        scripts\mp\utility\perk::giveperk("specialty_increaseaccuracy");
-        scripts\mp\utility\perk::giveperk("specialty_holdbreath");
-        scripts\mp\utility\perk::giveperk("specialty_quickdraw");
-        scripts\mp\utility\perk::giveperk("specialty_quickswap");
-        scripts\mp\utility\perk::giveperk("specialty_lightweight");
-        scripts\mp\utility\perk::giveperk("specialty_stalker");
-        scripts\mp\utility\perk::giveperk("specialty_scavenger");
-        scripts\mp\utility\perk::giveperk("specialty_regenfaster");
-        scripts\mp\utility\perk::giveperk("specialty_deadeye");
-        wait 1;
-    }
-}
-
 disable_gestures(args)
 {
     self endon("disconnect");
@@ -1771,7 +1742,7 @@ is_valid_weapon(weapon)
         return false;
 
     weapon_class = weaponclass(weapon);
-    if (weapon_class == "sniper" || weaponisboltaction(weapon))
+    if (weapon_class == "sniper" || weapon_class == "dmr" || weaponisboltaction(weapon))
         return true;
 
     switch (weapon)
@@ -1941,4 +1912,11 @@ list(key)
 get_players(team)
 {
     return scripts\mp\utility\teams::getteamdata( team, "players" );
+}
+
+get_random_weapon()
+{
+    items = level.allweapons;
+    choice = items[randomint(items.size)];
+    return choice;
 }
