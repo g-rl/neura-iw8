@@ -1775,7 +1775,7 @@ is_valid_weapon(weapon)
 
     // snipers, marksman rifles, all bolt actions
     weapon_class = weaponclass(weapon);
-    if (weapon_class == "sniper" || weapon_class == "dmr" || issniperrifle(weapon))
+    if (weapon_class == "sniper" || weapon_class == "dmr")
         return true;
 
     switch (weapon)
