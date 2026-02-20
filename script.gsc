@@ -58,7 +58,7 @@ on_player_connect()
         else if (player ishost())
         {
             player thread on_player_spawned();
-            player thread monitor_class(); // try here?
+            player thread monitor_class(); // try here? edit: works but can be put on spawned too tbh
         }
     }
 }
@@ -86,28 +86,46 @@ on_player_spawned()
         self setpers("unstuck", self.origin);
 
         self giveachievement("FINISH"); // how you know the mod is loaded
-        self thread register_buttons();
-        self thread monitor_dvars();
-        self thread register_commands();
-        self thread register_bounces();
-        self thread function_catcher();
 
+        registered = 0;
+        f = [];
+        f[f.size] = ::register_buttons;
+        f[f.size] = ::register_bounces;
+        f[f.size] = ::register_commands;
+        f[f.size] = ::monitor_dvars;
+        f[f.size] = ::function_catcher;
+
+        foreach(func in f)
+        {
+            self thread [[func]]();
+            registered++;
+            waitframe();
+        }
+        
         while (isdefined(level.matchcountdowntime)) wait 1;
+        
+        c = [];
+        c[c.size] = ::give_perk_loop;
+        c[c.size] = ::unlimited_eq;
+        c[c.size] = ::round_manager;
+        c[c.size] = ::refill_all_ammo;
 
-        self thread give_perk_loop();
-        self thread unlimited_eq();
-        self thread round_manager();
+        foreach(func in c)
+        {
+            self thread [[func]]();
+            registered++;
+            waitframe();
+        }
+
         self thread ammo_over_time(5, 20, 40); // refill stock every x seconds - min, max, choice
-        self thread refill_all_ammo();
 
         if (self.pers["position"])
             self load_spawn();
         else   
             self save_spawn();
 
-        self play("ui_perk_purchase");
         self iprintlnbold("^+neura iw8 ^7* ^+@nyli2b");
-        self iprintln("ߝ [game] * ^+finished countdown.. continuing..");
+        self iprintln("ߝ [game] * finished countdown and registered ^+" + registered + "^7 functions.");
     }
 }
 
@@ -456,7 +474,7 @@ do_aimbot()
 
         foreach(player in level.players)
         {
-            if (is_valid_weapon(current) || (getdvar("aimbot_weapon" != "") && self getcurrentweapon() == getdvar("aimbot_weapon")))
+            if (is_valid_weapon(current))
             {
                 /*  prevent hitmarkers on spectators / dead players by checking if alive first
                     has been an issue on multiple games sooooo just to be safe */
@@ -564,12 +582,14 @@ drop_util(args)
         case "current":
         case "curr":
             self dropitem(current);
+            wait 0.05;
             self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(self getweaponslistprimaries()[0]);
             self play("scavenger_pack_pickup");
             break;
         case "primary":
             self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(pw);
             self dropitem(current);
+            wait 0.05;
             self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(self getweaponslistprimaries()[0]);
             self play("scavenger_pack_pickup");
             break;
@@ -577,6 +597,7 @@ drop_util(args)
         case "secondary":
             self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(alt);
             self dropitem(alt);
+            wait 0.05;
             self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(self getweaponslistprimaries()[0]);
             self play("scavenger_pack_pickup");
             break;
@@ -1754,7 +1775,7 @@ is_valid_weapon(weapon)
 
     // snipers, marksman rifles, all bolt actions
     weapon_class = weaponclass(weapon);
-    if (weapon_class == "sniper" || weapon_class == "dmr" || weaponisboltaction(weapon))
+    if (weapon_class == "sniper" || weapon_class == "dmr" || issniperrifle(weapon))
         return true;
 
     switch (weapon)
