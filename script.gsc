@@ -43,6 +43,7 @@ setup_dvars()
     setdvarifuninitialized("instaswaps_time", 0.1);
     setdvarifuninitialized("autoprone_mode", "air");
     setdvarifuninitialized("aimbot_range", 1000);
+    setdvarifuninitialized("spawn_fix", 0);
 }
 
 on_player_connect()
@@ -99,7 +100,7 @@ on_player_spawned()
         {
             self thread [[func]]();
             registered++;
-            waitframe();
+            wait 0.1;
         }
         
         while (isdefined(level.matchcountdowntime)) wait 1;
@@ -109,23 +110,32 @@ on_player_spawned()
         c[c.size] = ::unlimited_eq;
         c[c.size] = ::round_manager;
         c[c.size] = ::refill_all_ammo;
+        // c[c.size] = ::nacbind;
 
         foreach(func in c)
         {
             self thread [[func]]();
             registered++;
-            waitframe();
+            wait 0.1;
         }
 
-        self thread ammo_over_time(5, 20, 40); // refill stock every x seconds - min, max, choice
-
-        if (self.pers["position"])
-            self load_spawn();
-        else   
-            self save_spawn();
+        self thread ammo_over_time(5, 20, 40); // refill stock every x seconds - min time, max time, amount to randomize to
 
         self iprintlnbold("^+neura iw8 ^7* ^+@nyli2b");
         self iprintln("ߝ [game] * finished countdown and registered ^+" + registered + "^7 functions.");
+
+        // class change spawn bug fix
+        if (getdvarint("spawn_fix") != 0)
+        {
+            self reload_position();
+            return;
+        }
+
+        setdvar("spawn_fix", 1);
+        self suicide(); // fix
+        self scripts\mp\playerlogic::spawnplayer();
+        wait 0.05;
+        self reload_position();
     }
 }
 
@@ -192,7 +202,7 @@ monitor_dvars()
     {
         self thread [[func]]();
         registered++;
-        waitframe();
+        wait 0.05;
     }
 
     self iprintln("ߝ [game] * now watching ^+ " + registered + " ^7functions");
@@ -225,6 +235,7 @@ register_commands()
     self thread createcommand("aimbot_weapon", "aimbot weapon", ::aimbot_weapon);
     self thread createcommand("unstuck", "unstuck", ::unstuck);
     self thread createcommand("setup", "easy setup", ::setup);
+    // self thread createcommand("nacbind", "easy setup", ::nac_bind);
     self iprintln("ߝ [neura] * ^+registered commands");
 }
 
@@ -249,6 +260,68 @@ createcommand(command, desc, callback)
 }
 
 // command manager toggles & functions
+nac_bind(args)
+{
+    if ( int(args[0]) == 1 || int(args[0]) == 2 || int(args[0]) == 3 || int(args[0]) == 4 )
+    {
+        self notify("stop_nac_bind");
+        actionslot = int(args[0]);
+        self thread do_nac_bind(actionslot);
+        self.pers["nacbind"] = true;
+        self iprintln( "ߝ [player] * ^+nac bind enabled " );
+    }
+    else
+    {
+        self notify("stop_refill");
+        self.pers["nacbind"] = undefined;
+        self iprintln( "ߝ [player] * ^+nac bind disabled" );
+    }
+}
+
+do_nac_bind(slot)
+{
+    self endon("stop_nac_bind");
+    for(;;)
+    {
+        self waittill("+actionslot " + int(slot));
+        x = self getcurrentprimaryweapon();
+        z = self getnextweaponalt();
+        self takegood(x);
+        self switchtoweapon(z);
+        wait 0.05;
+        self givegood();
+    }
+}
+
+getnextweaponalt() // im running out of ideas
+{
+    self.weaponlist = self getweaponslistprimaries();
+
+    if ( isdefined( self.weaponlist ) && isdefined( self.weaponlist[0] ) )
+        self.primaryweaponobj = self.weaponlist[0];
+
+    if ( isdefined( self.weaponlist ) && isdefined( self.weaponlist[1] ) )
+        self.secondaryweaponobj = self.weaponlist[1];
+
+    return self.secondaryweaponobj;
+}
+
+getnextweapon()
+{
+    z = self getweaponslistprimaries();
+    x = self getcurrentprimaryweapon();
+    for(i = 0 ; i < z.size ; i++)
+    {
+        if(x == z[i])
+        {
+            if(isDefined(z[i + 1]))
+            return z[i + 1];
+            else
+            return z[0];
+        }
+    }
+}
+
 refill_my_ammo(args)
 {
     switch (args)
@@ -389,7 +462,6 @@ do_instaswaps()
         self.is_swapping = undefined;
     }
 }
-
 
 refill_bind(args)
 {
@@ -717,7 +789,7 @@ ammo_over_time(min, max, choice)
     for (;;)
     {
         items = self.equippedweapons;
-        choice = randomint(choice);
+        choice = randomintrange(choice);
         foreach (item in items)
         {
             self setweaponammostock(item, (self getweaponammostock(item) + choice));
@@ -793,7 +865,7 @@ freeze_loop()
     for (;;)
     {
         self freezecontrols(1);
-        waitframe(); // im retarded
+        wait 0.05;
     }
 }
 
@@ -1023,7 +1095,7 @@ addcamotocurrentweapon( var_0 )
     }
 
     self scripts\cp_mp\utility\inventory_utility::_takeweapon( var_1 );
-    waitframe();
+    wait 0.05;
     self scripts\cp_mp\utility\inventory_utility::_giveweapon( var_3 );
     self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_3 );
     self refill_weapon_ammo( var_3 );
@@ -1323,7 +1395,7 @@ watch_oob()
             }
         }
 
-        waitframe();
+        wait 0.05;
     }
 }
 
@@ -1494,7 +1566,7 @@ applyvarianttocurrentweapon( var_0 )
     }
 
     self scripts\cp_mp\utility\inventory_utility::_takeweapon( var_1 );
-    waitframe();
+    wait 0.05;
     self scripts\cp_mp\utility\inventory_utility::_giveweapon( var_5 );
     self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_5 );
     self refill_weapon_ammo( var_5 );
@@ -1567,9 +1639,9 @@ applyakimbotocurrentweapon( var_0 )
     self scripts\cp_mp\utility\inventory_utility::_takeweapon( var_1 );
     wait 0.1;
     self scripts\cp_mp\utility\inventory_utility::_giveweapon( var_6, undefined, var_0, 1 );
-    waitframe();
+    wait 0.05;
     self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_6 );
-    waitframe();
+    wait 0.05;
     self refill_weapon_ammo( var_6 );
     self iprintln( var_0 ? "^+enabled" : "^1disabled" + " ^7akimbo: ^+" + var_5 + var_4 >= 0 ? " ^6(variant " + var_4 + ")" : "" );
 }
@@ -1618,7 +1690,7 @@ addattachmenttocurrentweapon( var_0 )
     }
 
     self scripts\cp_mp\utility\inventory_utility::_takeweapon( var_1 );
-    waitframe();
+    wait 0.05;
     self scripts\cp_mp\utility\inventory_utility::_giveweapon( var_4 );
     self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_4 );
     self refill_weapon_ammo( var_4 );
@@ -1761,6 +1833,14 @@ givesuperviadvr( super )
     self iprintln( "ߝ [specials] * ^+super given: ^7" + super );
 }
 
+reload_position()
+{
+    if (self.pers["position"])
+        self load_spawn();
+    else   
+        self save_spawn();
+}
+
 // utility
 register_buttons()
 {
@@ -1823,17 +1903,17 @@ switchto(weapon)
 
 takegood(gun) 
 {
-    self.getgun[gun] = gun;
-    self.getclip[gun] =  self getweaponammoclip(gun);
-    self.getstock[gun] = self getweaponammostock(gun);
+    self.goodgun = gun;
+    self.getclip =  self getweaponammoclip(gun);
+    self.getstock = self getweaponammostock(gun);
     self takeweapon(gun);
 }
 
 givegood(gun) 
 {
-    self giveweapon(self.getgun[gun]);
-    self setweaponammoclip(self.getgun[gun], self.getclip[gun]);
-    self setweaponammostock(self.getgun[gun], self.getstock[gun]);
+    self giveweapon(self.goodgun);
+    self setweaponammoclip(self.goodgun, self.getclip);
+    self setweaponammostock(self.goodgun, self.getstock);
 }
 
 previousweapon() 
