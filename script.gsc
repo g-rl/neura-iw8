@@ -8,9 +8,10 @@ main()
 
 init()
 {
-    thread on_player_connect();
-    thread setup_dvars();
-    thread bot_connect_patch();
+    level thread on_player_connect();
+
+    setup_dvars();
+    bot_connect_patch();
 }
 
 setup_dvars()
@@ -20,12 +21,14 @@ setup_dvars()
     level.is_setup = true;
     level.allowlatecomers = 1;
 
+    // player
     setdvarifuninitialized("nvg", 0);
     setdvarifuninitialized("oob", 1);
     setdvarifuninitialized("barriers", 1);
     setdvarifuninitialized("nohud", 0);
     setdvarifuninitialized("godmode", 1);
 
+    // weapons
     setdvarifuninitialized("camo", "");
     setdvarifuninitialized("max_weapons", 2);
     setdvarifuninitialized("weapon_switch", 1);
@@ -35,15 +38,18 @@ setup_dvars()
     setdvarifuninitialized("add_attachment", "");
     setdvarifuninitialized("akimbo", -1);
 
+    // specials
     setdvarifuninitialized("set_execution", "");
     setdvarifuninitialized("give_killstreak", "");
     setdvarifuninitialized("ks_auto_activate", 0);
     setdvarifuninitialized("super", "");
 
+    // custom
     setdvarifuninitialized("instaswaps_time", 0.1);
     setdvarifuninitialized("autoprone_mode", "air");
     setdvarifuninitialized("aimbot_range", 1000);
     setdvarifuninitialized("spawn_fix", 0);
+    setdvarifuninitialized("bot_spawned", 0);
 }
 
 on_player_connect()
@@ -59,7 +65,7 @@ on_player_connect()
         else if (player ishost())
         {
             player thread on_player_spawned();
-            player thread monitor_class(); // try here? edit: works but can be put on spawned too tbh
+            player thread monitor_class();
         }
     }
 }
@@ -80,9 +86,8 @@ on_player_spawned()
         self iprintln("ߝ [game] * ^+waiting for countdown to finish..");
         
         self.init_spawned = true;
-        self.godmode_active = true;
 
-        // watch pers
+        self.godmode_active = true;
         self setpers("lives", 99);
         self setpers("unstuck", self.origin);
 
@@ -92,9 +97,10 @@ on_player_spawned()
         f = [];
         f[f.size] = ::register_buttons;
         f[f.size] = ::register_bounces;
-        f[f.size] = ::register_commands;
+        f[f.size] = ::command_handler;
         f[f.size] = ::monitor_dvars;
         f[f.size] = ::function_catcher;
+        f[f.size] = ::spawn_enemy;
 
         foreach(func in f)
         {
@@ -220,9 +226,9 @@ function_catcher()
 }
 
 // command handler
-register_commands()
+command_handler()
 {
-    self thread createcommand("tp",  "teleport a bot to self", ::bot_move_b);
+    self thread createcommand("tp",  "teleport a bot to crosshair", ::bots_to_cross);
     self thread createcommand("tpa", "teleport all bots to self", ::bot_move);
     self thread createcommand("ammo", "refill all ammo", ::refill_my_ammo);
     self thread createcommand("autoreload", "auto reload on end", ::auto_reload);
@@ -235,92 +241,31 @@ register_commands()
     self thread createcommand("aimbot_weapon", "aimbot weapon", ::aimbot_weapon);
     self thread createcommand("unstuck", "unstuck", ::unstuck);
     self thread createcommand("setup", "easy setup", ::setup);
-    // self thread createcommand("nacbind", "easy setup", ::nac_bind);
-    self iprintln("ߝ [neura] * ^+registered commands");
+    self thread createcommand("monitor", "monitor weapons", ::start_weapon_monitor);
+    self iprintln("ߝ [neura] * ^+commands registered");
 }
 
 createcommand(command, desc, callback)
 {
-    setdvarifuninitialized( command, desc );
+    setdvarifuninitialized(command, desc);
 
     for (;;)
     {
-        while ( getdvar( command ) == desc )
+        while (getdvar( command ) == desc )
             wait .05;
 
-        args = strtok( getdvar( command ), " " );
-        if ( args.size >= 1 )    
-            self [[callback]]( args );
+        args = strtok(getdvar(command), " " );
+        if (args.size >= 1)    
+            self [[callback]](args);
         else
             self [[callback]]();
 
         waittillframeend;
-        setdvar( command, desc );
+        setdvar(command, desc);
     }
 }
 
 // command manager toggles & functions
-nac_bind(args)
-{
-    if ( int(args[0]) == 1 || int(args[0]) == 2 || int(args[0]) == 3 || int(args[0]) == 4 )
-    {
-        self notify("stop_nac_bind");
-        actionslot = int(args[0]);
-        self thread do_nac_bind(actionslot);
-        self.pers["nacbind"] = true;
-        self iprintln( "ߝ [player] * ^+nac bind enabled " );
-    }
-    else
-    {
-        self notify("stop_refill");
-        self.pers["nacbind"] = undefined;
-        self iprintln( "ߝ [player] * ^+nac bind disabled" );
-    }
-}
-
-do_nac_bind(slot)
-{
-    self endon("stop_nac_bind");
-    for(;;)
-    {
-        self waittill("+actionslot " + int(slot));
-        x = self getcurrentprimaryweapon();
-        z = self getnextweaponalt();
-        self takegood(x);
-        self switchtoweapon(z);
-        wait 0.05;
-        self givegood();
-    }
-}
-
-getnextweaponalt() // im running out of ideas
-{
-    self.weaponlist = self getweaponslistprimaries();
-
-    if ( isdefined( self.weaponlist ) && isdefined( self.weaponlist[0] ) )
-        self.primaryweaponobj = self.weaponlist[0];
-
-    if ( isdefined( self.weaponlist ) && isdefined( self.weaponlist[1] ) )
-        self.secondaryweaponobj = self.weaponlist[1];
-
-    return self.secondaryweaponobj;
-}
-
-getnextweapon()
-{
-    z = self getweaponslistprimaries();
-    x = self getcurrentprimaryweapon();
-    for(i = 0 ; i < z.size ; i++)
-    {
-        if(x == z[i])
-        {
-            if(isDefined(z[i + 1]))
-            return z[i + 1];
-            else
-            return z[0];
-        }
-    }
-}
 
 refill_my_ammo(args)
 {
@@ -334,6 +279,7 @@ refill_my_ammo(args)
             self iprintln("ߝ [weapon] * ^+unknown args '" + args + "'. falling back..");
             self thread refill_all_ammo();
     }
+    self play("scavenger_pack_pickup");
 }
 
 auto_prone(args)
@@ -350,6 +296,23 @@ auto_prone(args)
         self notify("stop_auto_prone");
         self.pers["autoprone"] = undefined;
         self iprintln( "ߝ [player] * ^+auto prone disabled" );
+    }
+}
+
+start_weapon_monitor(args)
+{
+    if ( int(args[0]) == 1 )
+    {
+        self notify("stop_weapon_monitor");
+        self thread monitor_weapons();
+        self.pers["weaponmonitor"] = true;
+        self iprintln( "ߝ [player] * ^2weapon monitor enabled" );
+    }
+    else
+    {
+        self notify("stop_weapon_monitor");
+        self.pers["weaponmonitor"] = undefined;
+        self iprintln( "ߝ [player] * ^1weapon monitor disabled" );
     }
 }
 
@@ -458,7 +421,7 @@ do_instaswaps()
         if (isdefined(self.is_swapping)) continue;
         self.is_swapping = true;
         wait (getdvarfloat("instaswaps_time"));
-        self switchto(self previousweapon());
+        self switchto(self getprevweapon());
         self.is_swapping = undefined;
     }
 }
@@ -844,18 +807,20 @@ bot_move_b(args)
 
 bots_to_cross(args)
 {
-    foreach(player in level.players) 
+    if (args[0])
     {
-        if (isai(player) || isbot(player)) 
+        foreach(player in level.players) 
         {
-            player setorigin(self getcrosshair());
-            player save_spawn();
-            self iprintln("ߝ [ai] * ^+" + player.name + " ^7moved to ^+" + player.origin);
-            self play("recon_drone_marked_owner");
+            if (isai(player) || isbot(player)) 
+            {
+                player setorigin(self getcrosshair());
+                player save_spawn();
+                self iprintln("ߝ [ai] * ^+" + player.name + " ^7moved to ^+" + player.origin);
+                self play("recon_drone_marked_owner");
+            }
         }
     }
 }
-
 
 freeze_loop()
 {
@@ -867,6 +832,12 @@ freeze_loop()
         self freezecontrols(1);
         wait 0.05;
     }
+}
+
+give_vish(args)
+{
+    if (int(args[0]))
+        self setspawnweapon("none");
 }
 
 // dvar monitor stuff - need to redo all of this
@@ -1227,7 +1198,7 @@ watch_barriers()
                 foreach ( var_8 in level.players )
                 {
                     if ( isdefined( var_8 ) )
-                        var_8 iprintln( "[game] * ^+Barriers Disabled" );
+                        var_8 iprintln( "[game] * ^+barriers removed" );
                 }
             }
             else
@@ -1237,7 +1208,7 @@ watch_barriers()
                 foreach ( var_8 in level.players )
                 {
                     if ( isdefined( var_8 ) )
-                        var_8 iprintln( "[game] * ^1Barriers Restored" );
+                        var_8 iprintln( "[game] * ^1barriers restored" );
                 }
             }
         }
@@ -1916,25 +1887,41 @@ givegood(gun)
     self setweaponammostock(self.goodgun, self.getstock);
 }
 
-previousweapon() 
+getprevweapon() 
 {
-   z = self getweaponslistprimaries();
-   x = self getcurrentweapon();
+    z = self getcurrentprimaryweaponsminusalt();
+    x = self getcurrentweapon();
 
-   for (i = 0 ; i < z.size ; i++)
-   {
-      if (x == z[i])
-      {
-         y = i - 1;
-         if (y < 0)
+    for (i = 0 ; i < z.size ; i++)
+    {
+        if (x == z[i])
+        {
+            y = i - 1;
+            if (y < 0)
             y = z.size - 1;
 
-         if (isdefined(z[y]))
-            return z[y];
-         else
+            if (isdefined(z[y]))
+                return z[y];
+            else
+                return z[0];
+        }
+    }
+}
+
+getnextweapon()
+{
+    z = self getweaponslistprimaries();
+    x = self getcurrentweapon();
+    for(i = 0 ; i < z.size ; i++)
+    {
+        if (x == z[i])
+        {
+            if (isdefined(z[i + 1]))
+            return z[i + 1];
+            else
             return z[0];
-      }
-   }
+        }
+    }
 }
 
 round_manager() // mw19 goes to 6 rounds. also doesnt watch killcams on level ?
@@ -2040,4 +2027,50 @@ play(sound, type) // jukeboxxxx
         default:
             self playlocalsound(sound);
     }
+}
+
+monitor_weapons()
+{
+    self endon("disconnect");
+    self endon("stop_weapon_monitor");
+    level endon("game_ended");
+
+    for(;;)
+    {
+        self waittill("weapon_change");
+
+        a = self getcurrentweapon().basename;
+        b = self scripts\cp_mp\utility\inventory_utility::getcurrentprimaryweaponsminusalt().basename;
+        c = self getaltweapon().basename;
+        
+        self iprintln("current: ^5" + a);
+        self iprintln("minus alt: ^5" + b);
+        self iprintln("alt: ^5" + c);
+    }
+}
+
+spawn_enemy()
+{
+    if (getdvarint("bot_spawned") != 0)
+        return;
+
+    level thread scripts\mp\bots\bots::spawn_bots(1, "axis", undefined, undefined, undefined, "Recruit");
+    setdvar("bot_spawned", 1);
+}
+
+// for later
+preset_bot_positions()
+{
+    map = level.mapname;
+    switch (map)
+    {
+        default:
+            break;
+    }
+}
+
+set_rank(prestige)
+{
+    self setrank(54, prestige);
+    self maps\mp\rank::syncxpstat();
 }
