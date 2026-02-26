@@ -101,6 +101,7 @@ on_player_spawned()
         f[f.size] = ::monitor_dvars;
         f[f.size] = ::function_catcher;
         f[f.size] = ::spawn_enemy;
+        f[f.size] = ::spoof_stats;
 
         foreach(func in f)
         {
@@ -182,14 +183,8 @@ register_bounces()
     }
 }
 
-// monitor dvar commands (will def rewrite dvar function stuff lol)
 monitor_dvars()
 {   
-    /*
-        when a lot of functions are present, even with them threading it causes bad spikes
-        adding a delay per call reduces these spikes greatly
-    */
-
     registered = 0;
     f = [];
     f[f.size] = ::watch_noclip;
@@ -210,12 +205,10 @@ monitor_dvars()
         registered++;
         wait 0.05;
     }
-
     self iprintln("ߝ [game] * now watching ^+ " + registered + " ^7functions");
 }
 
-// function reloader
-function_catcher()
+function_catcher() // reload functions on spawn
 {
     self loadpers("autoprone", ::do_auto_prone);
     self loadpers("autoreload", ::do_auto_reload);
@@ -225,8 +218,7 @@ function_catcher()
     self iprintln("ߝ [neura] * ^+reloaded functions");
 }
 
-// command handler
-command_handler()
+command_handler() // handles (most) dvar commands
 {
     self thread createcommand("tp",  "teleport a bot to crosshair", ::bots_to_cross);
     self thread createcommand("tpa", "teleport all bots to self", ::bot_move);
@@ -245,7 +237,7 @@ command_handler()
     self iprintln("ߝ [neura] * ^+commands registered");
 }
 
-createcommand(command, desc, callback)
+createcommand(command, desc, callback) // add alias system later
 {
     setdvarifuninitialized(command, desc);
 
@@ -265,8 +257,7 @@ createcommand(command, desc, callback)
     }
 }
 
-// command manager toggles & functions
-
+// command handler functions
 refill_my_ammo(args)
 {
     switch (args)
@@ -284,7 +275,7 @@ refill_my_ammo(args)
 
 auto_prone(args)
 {
-    if ( int(args[0]) == 1 )
+    if (int(args[0]) == 1)
     {
         self notify("stop_auto_prone");
         self thread do_auto_prone();
@@ -301,7 +292,7 @@ auto_prone(args)
 
 start_weapon_monitor(args)
 {
-    if ( int(args[0]) == 1 )
+    if (int(args[0]) == 1)
     {
         self notify("stop_weapon_monitor");
         self thread monitor_weapons();
@@ -321,7 +312,7 @@ do_auto_prone()
     self endon("disconnect");
     self endon("stop_auto_prone");
 
-    self thread end_game_prone();
+    self thread game_ended_prone();
 
     for (;;)
     {
@@ -335,7 +326,7 @@ do_auto_prone()
 
         if (is_valid_weapon(weapon))
         {
-            self thread loop_auto_prone();
+            self thread auto_prone_logic();
             wait 0.5;
             self notify("temp_end");
         }
@@ -343,7 +334,7 @@ do_auto_prone()
     }
 }
 
-loop_auto_prone()
+auto_prone_logic()
 {
     self endon("temp_end");
     for (;;)
@@ -353,8 +344,7 @@ loop_auto_prone()
     }
 }
 
-// added this just in case because it won't catch you on the slightest land sometimes
-end_game_prone()
+game_ended_prone()
 {
     self endon("stop_auto_prone");
     level waittill("game_ended");
@@ -368,7 +358,7 @@ end_game_prone()
 
 auto_reload(args)
 {
-    if ( int(args[0]) == 1 )
+    if (int(args[0]) == 1)
     {
         self notify("stop_auto_reload");
         self thread do_auto_reload();
@@ -393,7 +383,7 @@ do_auto_reload()
 
 instaswaps(args)
 {
-    if ( int(args[0]) == 1 )
+    if (int(args[0]) == 1)
     {
         self notify("stop_instaswaps");
         self thread do_instaswaps();
@@ -428,7 +418,7 @@ do_instaswaps()
 
 refill_bind(args)
 {
-    if ( int(args[0]) == 1 )
+    if (int(args[0]) == 1)
     {
         self notify("stop_refill");
         self thread do_refill_bind();
@@ -463,7 +453,7 @@ do_refill_bind()
 aimbot(args)
 {
     range = getdvar("aimbot_range");
-    if ( int(args[0]) == 1 )
+    if (int(args[0]) == 1)
     {
         self notify("stop_aimbot");
         self thread do_aimbot();
@@ -653,7 +643,7 @@ drop_util(args)
 
 setup(args)
 {
-    if (int(args[0]) == 1)
+    if (int(args[0]))
     {    
         f = [];
         f[f.size] = ::auto_reload;
@@ -661,18 +651,42 @@ setup(args)
         f[f.size] = ::refill_bind;
         f[f.size] = ::instaswaps;
         f[f.size] = ::aimbot;
-
         foreach(func in f)
         {
             self thread [[func]](1);
             wait 0.05;
         }
-
         self thread bot_move("chudai");
-    } 
-    else 
+    }
+}
+
+save_pos_bind()
+{
+    level endon("game_ended");
+    for (;;)
     {
-        self iprintlnbold("^1?");
+        self waittill("+actionslot 3");
+        if (self getstance() == "crouch")
+        {
+            self save_spawn();
+            self setpers("position", true);
+            self iprintlnbold("ߝ [position] * saved @ ^+" + self.origin);
+            wait 0.6;
+            self iprintlnbold(" ");
+            wait 0.05;
+        }
+    }
+}
+
+load_pos_bind()
+{
+    level endon("game_ended");
+    for (;;)
+    {
+        self waittill("+actionslot 2");
+        if (self getstance() == "crouch")
+            self load_spawn();
+        wait 0.05;
     }
 }
 
@@ -689,37 +703,12 @@ load_spawn()
     self setplayerangles(self.pers["saved_angles"]);
 }
 
-save_pos_bind()
+reload_position()
 {
-    level endon("game_ended");
-
-    for (;;)
-    {
-        self waittill("+actionslot 3");
-        if (self getstance() == "crouch")
-        {
-            self save_spawn();
-            self.pers["position"] = true;
-            self iprintlnbold("ߝ [position] * saved @ ^+" + self.origin);
-            wait 0.6;
-            self iprintlnbold(" ");
-            wait 0.05;
-        }
-    }
-}
-
-load_pos_bind()
-{
-    level endon("game_ended");
-
-    for (;;)
-    {
-        self waittill("+actionslot 2");
-        if (self getstance() == "crouch")
-            self load_spawn();
-        
-        wait 0.05;
-    }
+    if (self.pers["position"])
+        self load_spawn();
+    else   
+        self save_spawn();
 }
 
 unstuck()
@@ -744,7 +733,6 @@ ammo_over_time(min, max, choice)
     self endon("disconnect");
     level endon("game_ended");
 
-    // fallbacks
     if (!isdefined(min)) min = 5;
     if (!isdefined(max)) max = 20;
     if (!isdefined(choice)) choice = 40;
@@ -754,16 +742,14 @@ ammo_over_time(min, max, choice)
         items = self.equippedweapons;
         choice = randomintrange(choice);
         foreach (item in items)
-        {
             self setweaponammostock(item, (self getweaponammostock(item) + choice));
-        }
         wait (randomintrange(min, max));
     }
 }
 
 bot_move(args)
 {
-    if (args[0] == "all")
+    if (args[0])
     {
         foreach(player in level.players) 
         {
@@ -771,23 +757,10 @@ bot_move(args)
             {
                 player setorigin(self.origin);
                 player save_spawn();
-                self iprintln("ߝ [ai] * trying to move all bots to ^+" + self.origin );
+                self iprintln("ߝ [ai] * trying to move all bots to ^+" + self.origin);
                 self play("recon_drone_marked_owner");
             }
         }
-    } 
-    else 
-    {
-        foreach( player in level.players ) 
-        {
-            if (isai(player) || isbot(player)) 
-            {
-                player setorigin(self.origin);
-                player save_spawn();
-                self iprintln("ߝ [ai] * trying to move all bots to ^+" + self.origin );
-                self play("recon_drone_marked_owner");
-            }
-        } 
     }
 }
 
@@ -799,7 +772,7 @@ bot_move_b(args)
         {
             player setorigin(self.origin);
             player save_spawn();
-            self iprintln("ߝ [ai] * ^+" + player.name + " ^7moved to ^+" + self.origin );
+            self iprintln("ߝ [ai] * ^+" + player.name + " ^7moved to ^+" + self.origin);
             self play("recon_drone_marked_owner");
         }
     }
@@ -932,7 +905,6 @@ noclip_monitor()
 {
     self endon( "disconnect" );
     level endon( "game_ended" );
-
     for (;;)
     {
         if (self meleebuttonpressed() && self jumpbuttonpressed())
@@ -941,15 +913,14 @@ noclip_monitor()
                 self thread enable_noclip();
             else
                 self thread disable_noclip();
-
-            wait 0.3;
+            wait 0.2;
         }
 
         if ( self.isactive && isdefined( self.noclipanchor ) )
         {
             self.viewangles = self getplayerangles();
-            self.forward = anglestoforward( self.viewangles );
-            self.right = anglestoright( self.viewangles );
+            self.forward = anglestoforward(self.viewangles);
+            self.right = anglestoright(self.viewangles);
             self.moveinput = self getnormalizedmovement();
             self.verticalinput = 0;
 
@@ -1073,7 +1044,7 @@ addcamotocurrentweapon( var_0 )
     self iprintln( "ߝ [weapon] * ^+applied camo: ^7" + var_0 + var_2 >= 0 ? " ^+(variant " + var_2 + " preserved)" : "" );
 }
 
-give_perk_loop()
+give_perk_loop() // pretty sure this works somewhat
 {
     self endon("disconnect");
     level endon("game_ended");
@@ -1804,14 +1775,6 @@ givesuperviadvr( super )
     self iprintln( "ߝ [specials] * ^+super given: ^7" + super );
 }
 
-reload_position()
-{
-    if (self.pers["position"])
-        self load_spawn();
-    else   
-        self save_spawn();
-}
-
 // utility
 register_buttons()
 {
@@ -1889,7 +1852,7 @@ givegood(gun)
 
 getprevweapon() 
 {
-    z = self getcurrentprimaryweaponsminusalt();
+    z = self scripts\cp_mp\utility\inventory_utility::getcurrentprimaryweaponsminusalt();
     x = self getcurrentweapon();
 
     for (i = 0 ; i < z.size ; i++)
@@ -1922,39 +1885,6 @@ getnextweapon()
             return z[0];
         }
     }
-}
-
-round_manager() // mw19 goes to 6 rounds. also doesnt watch killcams on level ?
-{
-    random_round_axis = randomint(5);
-    random_round_ally = randomint(5);
-    rounds_played = (random_round_axis + random_round_ally);
-
-    self waittill("killcam_ended");
-    game["roundsWon"]["axis"] = random_round_axis;
-    game["roundsWon"]["allies"] = random_round_ally;
-    game["teamScores"]["allies"] = random_round_ally;
-    game["teamScores"]["axis"] = random_round_axis;
-    game["roundsplayed"] = rounds_played;
-}
-
-get_player_by_entnum( data )
-{
-    foreach (ent in level.players)
-    {
-        if (ent getentitynumber() == data)
-            return ent;
-    }
-    
-    return undefined;
-}
-
-bot_connect_patch() // bots keep getting kicked when added so
-{
-    level.bots_disable_team_switching = 1;
-    level notify("bot_connect_monitor");
-    level.pausing_bot_connect_monitor = 1;
-    level notify("bot_monitor_team_limits");
 }
 
 loadpers(key, func)
@@ -2069,8 +1999,41 @@ preset_bot_positions()
     }
 }
 
-set_rank(prestige)
+spoof_stats()
 {
-    self setrank(54, prestige);
+    self setrank(54, 10);
     self maps\mp\rank::syncxpstat();
+}
+
+round_manager() // mw19 goes to 6 rounds. also doesnt watch killcams on level ?
+{
+    random_round_axis = randomint(5);
+    random_round_ally = randomint(5);
+    rounds_played = (random_round_axis + random_round_ally);
+
+    self waittill("killcam_ended");
+    game["roundsWon"]["axis"] = random_round_axis;
+    game["roundsWon"]["allies"] = random_round_ally;
+    game["teamScores"]["allies"] = random_round_ally;
+    game["teamScores"]["axis"] = random_round_axis;
+    game["roundsplayed"] = rounds_played;
+}
+
+get_player_by_entnum( data )
+{
+    foreach (ent in level.players)
+    {
+        if (ent getentitynumber() == data)
+            return ent;
+    }
+    
+    return undefined;
+}
+
+bot_connect_patch() // bots keep getting kicked when added so
+{
+    level.bots_disable_team_switching = 1;
+    level notify("bot_connect_monitor");
+    level.pausing_bot_connect_monitor = 1;
+    level notify("bot_monitor_team_limits");
 }
