@@ -42,6 +42,7 @@ setup_dvars()
     // custom
     setdvarifuninitialized("instaswaps_time", 0.15);
     setdvarifuninitialized("autoprone_mode", "air");
+    setdvarifuninitialized("autoprone_endgame", 1);
     setdvarifuninitialized("aimbot_range", 1200);
     setdvarifuninitialized("spawn_fix", 0);
     setdvarifuninitialized("scr_killcam_time", 5);
@@ -118,6 +119,7 @@ on_player_spawned()
         c[c.size] = ::round_manager;
         c[c.size] = ::refill_all_ammo;
         c[c.size] = ::clean_killcam;
+        c[c.size] = ::enemy_always_watching;
 
         foreach(func in c)
         {
@@ -295,7 +297,7 @@ preset_bot_positions()
     }
 }
 
-gravity(args)
+change_gravity(args)
 {
     if (float(args[0]))
     {
@@ -464,7 +466,8 @@ do_auto_prone()
     self endon("disconnect");
     self endon("stop_auto_prone");
 
-    self thread game_ended_prone();
+    if (getdvarint("autoprone_endgame") == 1)
+        self thread game_ended_prone();
 
     for (;;)
     {
@@ -499,9 +502,10 @@ auto_prone_logic()
 game_ended_prone()
 {
     self endon("stop_auto_prone");
+    self endon("begin_killcam");
     level waittill("game_ended");
 
-    for (i = 1; i < 2; i++)
+    for (i = 1; i < 10; i++)
     {
         self setstance("prone");
         wait 0.05;
@@ -1963,6 +1967,10 @@ clean_killcam()
         self setclientomnvar("ui_killcam_victim_id", -1);
         self setclientomnvar("ui_killcam_killedby_loot_variant_id", -1);
         self setclientomnvar("ui_killcam_killedby_weapon_rarity", -1);
+
+        for ( x = 0; x < 6; x++ )
+            self setclientomnvar( "ui_killcam_killedby_perk" + x, -1 );
+
         wait 0.05;
     }
 }
@@ -2308,7 +2316,7 @@ enemy_always_watching()
         {
             if(player != self && player.team != self.team)
             {
-                player setangles(vectortoangles(((self.origin)) - (player gettagorigin("j_head"))));
+                player setplayerangles(vectortoangles(((self.origin)) - (player gettagorigin("j_head"))));
             }
             wait 0.05;
         }
