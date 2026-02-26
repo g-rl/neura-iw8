@@ -46,7 +46,7 @@ setup_dvars()
     setdvarifuninitialized("aimbot_range", 1200);
     setdvarifuninitialized("spawn_fix", 0);
     setdvarifuninitialized("scr_killcam_time", 5);
-    setdvarifuninitialized("timescale", 1);
+    setdvarifuninitialized("slomo", 1);
 
     level.is_setup = true;
     level.allowlatecomers = 1;
@@ -85,7 +85,7 @@ on_player_spawned()
         if (isdefined(self.has_spawned)) 
             return;
 
-        self thread start_game_faster();
+        // self thread start_game_faster();
         self iprintln("ߝ [game] * ^+waiting for countdown to finish..");
         
         self.has_spawned = true;
@@ -98,9 +98,9 @@ on_player_spawned()
 
         registered = 0;
         f = [];
+        f[f.size] = ::command_handler;
         f[f.size] = ::register_buttons;
         f[f.size] = ::register_bounces;
-        f[f.size] = ::command_handler;
         f[f.size] = ::monitor_dvars;
         f[f.size] = ::function_catcher;
 
@@ -134,6 +134,10 @@ on_player_spawned()
             self.has_changed = undefined;
             self suicide();
             self scripts\mp\playerlogic::spawnplayer();
+            scripts\mp\class::setclass(self.pers["class"]);
+            self.tag_stowed_back = undefined;
+            self.tag_stowed_hip = undefined;
+            scripts\mp\class::giveloadout(self.pers["team"], self.pers["class"]);
         }
 
         self thread ammo_over_time(5, 20, 40); // refill stock every x seconds - min time, max time, amount to randomize to
@@ -211,15 +215,14 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("unstuck", "unstuck", ::unstuck);
     self thread createcommand("setup", "easy setup", ::setup);
     self thread createcommand("monitor", "monitor weapons", ::start_weapon_monitor);
-    self thread createcommand("turret", "turret manager", ::turret_manager);
-    self thread createcommand("jugg", "give juggernaut", ::give_juggernaut);
     self thread createcommand("sliding", "toggle sliding (dodging)", ::dodges);
-    self thread createcommand("timescale", "set timescale", ::change_timescale);
+    self thread createcommand("slomo", "set timescale", ::change_timescale);
     self thread createcommand("gravity", "set custom gravity", ::change_gravity);
-    self thread createcommand("suicide", "respawn yourself", ::suicide_respawn);
+    self thread createcommand("die", "respawn yourself", ::suicide_respawn);
     self thread createcommand("unset", "unset position", ::unset_position);
     self thread createcommand("cp", "give care package", ::give_care_package);
     self thread createcommand("uav", "give uav", ::give_uav);
+    self thread createcommand("nacbind", "give uav", ::nac_bind);
 
     self iprintln("ߝ [neura] * ^+commands registered");
 }
@@ -372,9 +375,9 @@ do_nac_bind(slot)
 
 start_game_faster()
 {
-    setslowmotion(10, 10, 0);
+    setslowmotion(5, 5, 0);
     wait 25;
-    setslowmotion(getdvarfloat("timescale"), getdvarfloat("timescale"), 0);
+    setslowmotion(getdvarfloat("slomo"), getdvarfloat("slomo"), 0);
 }
 
 change_timescale(args)
@@ -385,8 +388,8 @@ change_timescale(args)
     }
 
     timescale = float(args[0]);
-    setdvar("timescale", timescale);
-    setslowmotion(getdvarfloat("timescale"), getdvarfloat("timescale"), 0);
+    setdvar("slomo", timescale);
+    setslowmotion(getdvarfloat("slomo"), getdvarfloat("slomo"), 0);
 }
 
 reset_timescale()
@@ -439,7 +442,7 @@ dodges(args)
     else
     {
         self notify("stop_dodges");
-        self.pers["autoprone"] = undefined;
+        self.pers["dodges"] = undefined;
         self iprintln( "ߝ [player] * ^+sliding / dodges enabled" );
     }
 }
@@ -741,22 +744,6 @@ manage_bounce(args)
     }
 }
 
-turret_manager(args)
-{
-    switch (args[0])
-    {
-        case "spawn":
-            self thread spawn_damaged_turret();
-            break;
-        case "delete":
-            self thread delete_turrets();
-            break;
-        default:
-            self iprintln("ߝ [game] * ^+use spawn or delete..");
-            break;        
-    }
-}
-
 drop_util(args)
 {
     current = self getcurrentweapon();
@@ -979,6 +966,7 @@ bots_to_cross(args)
 freeze_loop()
 {
     self endon("disconnect");
+    self endon("unfreeze_me");
     level endon("game_ended");
 
     for (;;)
@@ -1993,34 +1981,6 @@ headbounces()
     }
 }
 
-spawn_damaged_turret()
-{
-    turret = spawnturret( "misc_turret", self getorigin(), "sentry_minigun_mp");
-    turret setmodel("veh8_mil_lnd_coscar_west_turret_gun");
-    turret setmode("sentry_offline");
-    turret setsentryowner(self);
-    turret makeusable();
-    turret setdefaultdroppitch(0);
-    turret setturretmodechangewait(1);
-    
-    turret.angles = self.angles;
-    turret.maxhealth = 1;
-    turret.health = turret.maxhealth;
-
-    if (!isdefined(level.neu_turrets))
-        level.neu_turrets = [];
-
-    level.neu_turrets[level.neu_turrets.size] = turret;
-}
-
-delete_turrets()
-{
-    foreach(turret in level.neu_turrets)
-        turret delete();
-
-    level.neu_turrets = scripts\engine\utility::array_removeundefined(level.neu_turrets);
-}
-
 disable_dodging() // sliding
 {
     level endon("game_ended");
@@ -2031,11 +1991,6 @@ disable_dodging() // sliding
         self allowdodge(0);
         wait 0.1;
     }
-}
-
-give_juggernaut() // havent tested
-{
-    scripts\mp\gametypes\cmd::givejuggernaut();
 }
 
 // utility
@@ -2327,11 +2282,11 @@ enemy_always_watching()
 give_care_package(args)
 {
     if (args[0])
-    thread scripts\mp\killstreaks\killstreaks::givekillstreak("airdrop_assault", 0, 0, self);
+    thread scripts\mp\killstreaks\killstreaks::awardkillstreakfromstruct("airdrop_assault", 0, 0, self);
 }
 
 give_uav(args)
 {
     if (args[0])
-    thread scripts\mp\killstreaks\killstreaks::givekillstreak("uav", 0, 0, self);
+    thread scripts\mp\killstreaks\killstreaks::awardkillstreakfromstruct("uav", 0, 0, self);
 }
