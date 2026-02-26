@@ -35,7 +35,7 @@ setup_dvars()
 
     // specials
     setdvarifuninitialized("set_execution", "");
-    setdvarifuninitialized("give_killstreak", "");
+    setdvarifuninitialized("give_streak", "");
     setdvarifuninitialized("ks_auto_activate", 0);
     setdvarifuninitialized("super", "");
 
@@ -44,7 +44,6 @@ setup_dvars()
     setdvarifuninitialized("autoprone_mode", "air");
     setdvarifuninitialized("autoprone_endgame", 1);
     setdvarifuninitialized("aimbot_range", 1200);
-    setdvarifuninitialized("spawn_fix", 0);
     setdvarifuninitialized("scr_killcam_time", 5);
     setdvarifuninitialized("slomo", 1);
 
@@ -202,7 +201,7 @@ command_handler() // handles (most) dvar commands
 {
     self thread createcommand("tp",  "teleport a bot to crosshair", ::bots_to_cross);
     self thread createcommand("tpa", "teleport all bots to self", ::bot_move);
-    self thread createcommand("ammo", "refill all ammo", ::refill_my_ammo);
+    self thread createcommand("ammo", "refill ammo", ::refill_my_ammo);
     self thread createcommand("autoreload", "auto reload on end", ::auto_reload);
     self thread createcommand("autoprone", "auto prone", ::auto_prone);
     self thread createcommand("refillbind", "refill ammo", ::refill_bind);
@@ -868,7 +867,7 @@ bots_to_cross(args)
             {
                 player setorigin(self getcrosshair());
                 player save_spawn();
-                self iprintln("ߝ [ai] * ^+" + player.name + " ^7moved to ^+" + player.origin);
+                self iprintln("ߝ [ai] * trying to move all bots to ^+" + player.origin);
                 self play("recon_drone_marked_owner");
             }
         }
@@ -1762,17 +1761,17 @@ watch_killstreaks()
     self endon( "disconnect" );
     self endon( "death" );
     level endon( "game_ended" );
-    var_0 = getdvar( "give_killstreak", "" );
+    var_0 = getdvar( "give_streak", "" );
 
     for (;;)
     {
-        var_1 = getdvar( "give_killstreak", "" );
+        var_1 = getdvar( "give_streak", "" );
 
         if ( var_1 != var_0 && var_1 != "" )
         {
             var_0 = var_1;
             self givekillstreakviadvr( var_1 );
-            setdvar( "give_killstreak", "" );
+            setdvar( "give_streak", "" );
             var_0 = "";
         }
 
