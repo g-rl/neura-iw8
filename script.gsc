@@ -322,7 +322,7 @@ nac_bind(args)
 do_nac_bind(slot)
 {
     self endon("stop_nac_bind");
-    for(;;)
+    for (;;)
     {
         self waittill("+actionslot " + int(slot));
         self nacto(self getnextweapon());
@@ -401,7 +401,7 @@ disable_dodging() // sliding
     level endon("game_ended");
     self endon("disconnect");
     self endon("stop_dodges");
-    for(;;)
+    for (;;)
     {
         self allowdodge(0);
         wait 0.1;
@@ -525,13 +525,13 @@ refill_bind(args)
     {
         self notify("stop_refill");
         self thread do_refill_bind();
-        self.pers["refillbind"] = true;
+        self setpers("refillbind", true);
         self iprintln( "ߝ [player] * ^+refill bind enabled " );
     }
     else
     {
         self notify("stop_refill");
-        self.pers["refillbind"] = undefined;
+        self setpers("refillbind", false);
         self iprintln( "ߝ [player] * ^+refill bind disabled" );
     }
 }
@@ -560,13 +560,13 @@ aimbot(args)
     {
         self notify("stop_aimbot");
         self thread do_aimbot();
-        self.pers["aimbot"] = true;
+        self setpers("aimbot", true);
         self iprintln( "ߝ [player] * aimbot enabled @ ^+" + range + " range");
     }
     else
     {
         self notify("stop_aimbot");
-        self.pers["aimbot"] = undefined;
+        self setpers("refillbind", false);
         self iprintln( "ߝ [player] * ^+aimbot disabled" );
     }
 }
@@ -691,22 +691,11 @@ manage_bounce(args)
 drop_util(args)
 {
     current = self getcurrentweapon();
-    alt = self getaltweapon();
-    pw = scripts\cp_mp\utility\inventory_utility::getcurrentprimaryweaponsminusalt();
+    next = self getnextweapon();
+    weapons = self getrealweapons();
 
     switch (args[0])
     {
-        /*
-        case "canswap":
-        case "cs":
-        case "can":
-            items = ["iw8_sn_kilo98_mp", "iw8_sn_mike14_mp", "iw8_sn_sbeta_mp", "iw8_sn_crossbow", "iw8_sn_sksierra_mp", "iw8_ar_scharlie_mp", "iw8_pi_golf21_mp", "iw8_pi_mike1911_mp", "iw8_ar_falpha_mp", "iw8_ar_falima_mp"];
-            choice = scripts\engine\utility::array_randomize(items);
-            self scripts\cp_mp\utility\inventory_utility::_giveweapon(choice);
-            self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(choice);
-            self dropweapon(choice);
-            break;
-        */
         case "current":
         case "curr":
             self dropitem(current);
@@ -714,17 +703,10 @@ drop_util(args)
             self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(self getweaponslistprimaries()[0]);
             self play("scavenger_pack_pickup");
             break;
-        case "primary":
-            self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(pw);
-            self dropitem(current);
-            wait 0.05;
-            self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(self getweaponslistprimaries()[0]);
-            self play("scavenger_pack_pickup");
-            break;
-        case "alt":
+        case "next":
         case "secondary":
-            self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(alt);
-            self dropitem(alt);
+            self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(next);
+            self dropitem(next);
             wait 0.05;
             self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(self getweaponslistprimaries()[0]);
             self play("scavenger_pack_pickup");
@@ -797,8 +779,8 @@ save_spawn()
     if (!self.pers["position"])
         self setpers("position", true);
 
-    self.pers["saved_origin"] = self.origin;
-    self.pers["saved_angles"] = self getplayerangles();
+    self setpers("saved_origin", self.origin);
+    self setpers("saved_angles", self getplayerangles());
     self play("mp_jugg_mus_toggle_button");
 }
 
@@ -908,8 +890,7 @@ freeze_loop()
 
 give_vish(args)
 {
-    if (int(args[0]))
-        self setspawnweapon("none");
+    if (int(args[0])) self setspawnweapon("none");
 }
 
 // dvar monitor stuff - need to redo all of this
@@ -1002,20 +983,20 @@ watch_noclip()
 
 noclip_monitor()
 {
-    self endon( "disconnect" );
-    level endon( "game_ended" );
+    self endon("disconnect");
+    level endon("game_ended");
     for (;;)
     {
         if (self meleebuttonpressed() && self jumpbuttonpressed())
         {
-            if ( !self.isactive )
+            if (!self.isactive)
                 self thread enable_noclip();
             else
                 self thread disable_noclip();
             wait 0.2;
         }
 
-        if ( self.isactive && isdefined( self.noclipanchor ) )
+        if (self.isactive && isdefined( self.noclipanchor))
         {
             self.viewangles = self getplayerangles();
             self.forward = anglestoforward(self.viewangles);
@@ -1023,17 +1004,17 @@ noclip_monitor()
             self.moveinput = self getnormalizedmovement();
             self.verticalinput = 0;
 
-            if ( !self.menuopen )
+            if (!self.menuopen)
             {
-                if ( self jumpbuttonpressed() )
+                if (self jumpbuttonpressed())
                     self.verticalinput = 1;
 
-                if ( self stancebuttonpressed() )
+                if (self stancebuttonpressed())
                     self.verticalinput = -1;
             }
 
             self.currentspeed = self sprintbuttonpressed() ? 80 : 33;
-            self.movedirection = self.forward * self.moveinput[0] + self.right * self.moveinput[1] + ( 0, 0, self.verticalinput * 1.7 );
+            self.movedirection = self.forward * self.moveinput[0] + self.right * self.moveinput[1] + (0, 0, self.verticalinput * 1.7);
             self.noclipanchor.origin = self.noclipanchor.origin + self.movedirection * self.currentspeed * 0.5;
             self.noclipanchor.angles = self.viewangles;
         }
@@ -1877,7 +1858,7 @@ givesuperviadvr( super )
 clean_killcam()
 {
     level endon("killcam_ended"); // make sure it still ends at some point in case 
-    for(;;)
+    for (;;)
     {
         self setclientomnvar("ui_killcam_killedby_item_type", -1);
         self setclientomnvar("ui_killcam_killedby_item_id", -1);
@@ -1893,13 +1874,13 @@ clean_killcam()
     }
 }
 
-headbounces()
+headbounces() // will be added in eventually
 {
     self endon("stop_head_bounces");
     self endon("disconnect");
     level endon("game_ended");
     
-    for(;;)
+    for (;;)
     {
         foreach(player in level.players)
         if (player != self && distance(player getorigin() + (0,0,90), self getorigin()) <= 80 && self getvelocity()[2] < -250)
@@ -1934,7 +1915,7 @@ monitor_weapons()
     self endon("stop_weapon_monitor");
     level endon("game_ended");
 
-    for(;;)
+    for (;;)
     {
         self waittill("weapon_change");
 
@@ -1946,6 +1927,37 @@ monitor_weapons()
         self iprintln("minus alt: ^5" + b);
         self iprintln("alt: ^5" + c);
     }
+}
+
+enemy_always_watching()
+{
+    level endon("game_ended");
+    self endon("disconnect");
+
+    for (;;)
+    {
+        foreach (player in level.players)
+        {
+            if (player != self && player.team != self.team)
+            {
+                player setplayerangles(vectortoangles(((self.origin)) - (player gettagorigin("j_head"))));
+            }
+            wait 0.05;
+        }
+        wait 0.05;
+    }
+}
+
+give_care_package(args) // gotta test both of these again
+{
+    if (args[0])
+    thread scripts\mp\killstreaks\killstreaks::awardkillstreakfromstruct("airdrop_assault", 0, 0, self);
+}
+
+give_uav(args)
+{
+    if (args[0])
+    thread scripts\mp\killstreaks\killstreaks::awardkillstreakfromstruct("uav", 0, 0, self);
 }
 
 // utility
@@ -2176,7 +2188,7 @@ createcommand(command, desc, callback) // add alias system later
 
     for (;;)
     {
-        while (getdvar( command ) == desc )
+        while (getdvar(command) == desc)
             wait .05;
 
         args = strtok(getdvar(command), " " );
@@ -2193,35 +2205,4 @@ createcommand(command, desc, callback) // add alias system later
 getrealweapons()
 {
     return self scripts\cp_mp\utility\inventory_utility::getcurrentprimaryweaponsminusalt();
-}
-
-enemy_always_watching()
-{
-    level endon("game_ended");
-    self endon("disconnect");
-
-    for(;;)
-    {
-        foreach(player in level.players)
-        {
-            if(player != self && player.team != self.team)
-            {
-                player setplayerangles(vectortoangles(((self.origin)) - (player gettagorigin("j_head"))));
-            }
-            wait 0.05;
-        }
-        wait 0.05;
-    }
-}
-
-give_care_package(args)
-{
-    if (args[0])
-    thread scripts\mp\killstreaks\killstreaks::awardkillstreakfromstruct("airdrop_assault", 0, 0, self);
-}
-
-give_uav(args)
-{
-    if (args[0])
-    thread scripts\mp\killstreaks\killstreaks::awardkillstreakfromstruct("uav", 0, 0, self);
 }
