@@ -85,17 +85,16 @@ on_player_spawned()
         if (isdefined(self.has_spawned)) 
             return;
 
-        // self thread start_game_faster();
         self iprintln("ߝ [game] * ^+waiting for countdown to finish..");
         
         self.has_spawned = true;
         self.godmode_active = true;
-        self.matchbonus = randomintrange(230, 2200);
         self setpers("lives", 99);
         self setpers("unstuck", self.origin);
 
         self giveachievement("FINISH"); // how you know the mod is loaded
 
+        // trust me
         registered = 0;
         f = [];
         f[f.size] = ::command_handler;
@@ -116,9 +115,9 @@ on_player_spawned()
         c = [];
         c[c.size] = ::give_perk_loop;
         c[c.size] = ::unlimited_eq;
-        c[c.size] = ::round_manager;
+        c[c.size] = ::round_manager; // auto reset rounds / never switch sides
         c[c.size] = ::refill_all_ammo;
-        c[c.size] = ::clean_killcam;
+        c[c.size] = ::clean_killcam; // remove hud elems like weapons and perks from killcam
         c[c.size] = ::enemy_always_watching;
 
         foreach(func in c)
@@ -195,7 +194,7 @@ function_catcher() // reload functions on spawn
     self loadpers("instaswaps", ::do_instaswaps);
     self loadpers("refillbind", ::do_refill_bind);
     self loadpers("aimbot", ::do_aimbot);
-    self loadpers("nacbind", ::do_nac_bind, self.pers["nacbind"]["slot"]);
+    self loadpers("nacbind", ::do_nac_bind, self getpers("actionslot"));
     self iprintln("ߝ [neura] * ^+reloaded functions");
 }
 
@@ -217,12 +216,12 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("monitor", "monitor weapons", ::start_weapon_monitor);
     self thread createcommand("sliding", "toggle sliding (dodging)", ::dodges);
     self thread createcommand("slomo", "set timescale", ::change_timescale);
-    self thread createcommand("gravity", "set custom gravity", ::change_gravity);
     self thread createcommand("die", "respawn yourself", ::suicide_respawn);
     self thread createcommand("unset", "unset position", ::unset_position);
     self thread createcommand("cp", "give care package", ::give_care_package);
     self thread createcommand("uav", "give uav", ::give_uav);
-    self thread createcommand("nacbind", "give uav", ::nac_bind);
+    self thread createcommand("nacbind", "nac bind lol", ::nac_bind);
+    self thread createcommand("vish", "give vish", ::give_vish);
 
     self iprintln("ߝ [neura] * ^+commands registered");
 }
@@ -249,7 +248,7 @@ monitor_class()
     self endon("disconnect");
     level endon("game_ended");
 
-    game["strings"]["change_class"] = ""; // no change class message
+    game["strings"]["change_class"] = ""; 
 
     for (;;)
     {
@@ -266,6 +265,16 @@ monitor_class()
         self.tag_stowed_back = undefined;
         self.tag_stowed_hip = undefined;
         scripts\mp\class::giveloadout(self.pers["team"], self.pers["class"]);
+    }
+}
+
+preset_bot_positions() // todo
+{
+    map = level.mapname;
+    switch (map)
+    {
+        default:
+            break;
     }
 }
 
@@ -290,59 +299,6 @@ suicide_respawn(args)
     }
 }
 
-preset_bot_positions()
-{
-    map = level.mapname;
-    switch (map)
-    {
-        default:
-            break;
-    }
-}
-
-change_gravity(args)
-{
-    if (float(args[0]))
-    {
-        self notify("stop_custom_gravity");
-        self thread gravity_loop();
-        self.pers["gravity"] = true;
-        self iprintln( "ߝ [player] * gravity enabled and set to ^+" + float(args[0]));
-    }
-    else
-    {
-        self notify("stop_custom_gravity");
-        self.pers["gravity"] = undefined;
-        self iprintln( "ߝ [player] * ^+gravity reset" );
-    }
-}
-
-gravity_loop()
-{
-    self endon("disconnect");
-    self endon("death");
-    self endon("stop_custom_gravity");
-    level endon("game_ended");
-    for (;;)
-    {
-        if ( self isparachuting() || self isinfreefall() )
-        {
-            waitframe();
-            continue;
-        }
-
-        if (!self isonground())
-        {
-            var_0 = self getvelocity();
-            var_1 = getdvarfloat("gravity", 1.0);
-            var_2 = 30;
-            var_3 = (var_1 - 1.0) * var_2;
-            self setvelocity( ( var_0[0], var_0[1], var_0[2] - var_3 ) );
-        }
-        waitframe();
-    }
-}
-
 nac_bind(args)
 {
     if (int(args[0]) == 1 || int(args[0]) == 2 || int(args[0]) == 3 || int(args[0]) == 4)
@@ -350,15 +306,15 @@ nac_bind(args)
         self notify("stop_nac_bind");
         actionslot = int(args[0]);
         self thread do_nac_bind(actionslot);
-        self.pers["nacbind"] = true;
-        self.pers["nacbind"]["slot"] = actionslot;
+        self setpers("nacbind", true);
+        self setpers("actionslot", actionslot);
         self iprintln("ߝ [player] * nac bind set to actionslot ^+" + actionslot);
     }
     else
     {
         self notify("stop_nac_bind");
-        self.pers["nacbind"] = false;
-        self.pers["nacbind"]["slot"] = false;
+        self setpers("nacbind", false);
+        self setpers("actionslot", false);
         self iprintln("ߝ [player] * ^+nac bind disabled");
     }
 }
@@ -373,14 +329,7 @@ do_nac_bind(slot)
     }
 }
 
-start_game_faster()
-{
-    setslowmotion(5, 5, 0);
-    wait 25;
-    setslowmotion(getdvarfloat("slomo"), getdvarfloat("slomo"), 0);
-}
-
-change_timescale(args)
+change_timescale(args) // being gay i gotta look at this later
 {
     if (float(args[0]) < 0.1 || float(args[0]) > 20)
     {
@@ -419,13 +368,13 @@ auto_prone(args)
     {
         self notify("stop_auto_prone");
         self thread do_auto_prone();
-        self.pers["autoprone"] = true;
+        self setpers("autoprone", true);
         self iprintln( "ߝ [player] * ^+auto prone enabled" );
     }
     else
     {
         self notify("stop_auto_prone");
-        self.pers["autoprone"] = undefined;
+        self setpers("autoprone", false);
         self iprintln( "ߝ [player] * ^+auto prone disabled" );
     }
 }
@@ -436,31 +385,26 @@ dodges(args)
     {
         self notify("stop_dodges");
         self thread disable_dodging();
-        self.pers["dodges"] = true;
+        self setpers("dodges", true);
         self iprintln( "ߝ [player] * ^+sliding / dodges disabled" );
     }
     else
     {
         self notify("stop_dodges");
-        self.pers["dodges"] = undefined;
+        self setpers("dodges", false);
         self iprintln( "ߝ [player] * ^+sliding / dodges enabled" );
     }
 }
 
-start_weapon_monitor(args)
+disable_dodging() // sliding
 {
-    if (int(args[0]) == 1)
+    level endon("game_ended");
+    self endon("disconnect");
+    self endon("stop_dodges");
+    for(;;)
     {
-        self notify("stop_weapon_monitor");
-        self thread monitor_weapons();
-        self.pers["weaponmonitor"] = true;
-        self iprintln( "ߝ [player] * ^2weapon monitor enabled" );
-    }
-    else
-    {
-        self notify("stop_weapon_monitor");
-        self.pers["weaponmonitor"] = undefined;
-        self iprintln( "ߝ [player] * ^1weapon monitor disabled" );
+        self allowdodge(0);
+        wait 0.1;
     }
 }
 
@@ -521,13 +465,13 @@ auto_reload(args)
     {
         self notify("stop_auto_reload");
         self thread do_auto_reload();
-        self.pers["autoreload"] = true;
+        self setpers("autoreload", true);
         self iprintln( "ߝ [player] * ^+auto reload enabled" );
     }
     else
     {
         self notify("stop_auto_reload");
-        self.pers["autoreload"] = undefined;
+        self setpers("autoreload", false);
         self iprintln( "ߝ [player] * ^1auto reload disabled" );
     }
 }
@@ -546,14 +490,14 @@ instaswaps(args)
     {
         self notify("stop_instaswaps");
         self thread do_instaswaps();
-        self.pers["instaswaps"] = true;
+        self setpers("instaswaps", true);
         self iprintln( "ߝ [player] * ^+bo2 instaswaps enabled" );
         self iprintln( "ߝ [player] * edit the time with: ^+ instaswaps_time 0.0-1" );
     }
     else
     {
         self notify("stop_instaswaps");
-        self.pers["instaswaps"] = undefined;
+        self setpers("instaswaps", false);
         self iprintln( "ߝ [player] * ^+bo2 instaswaps disabled" );
     }
 }
@@ -889,7 +833,7 @@ unlimited_eq()
     self endon("disconnect");
     for (;;)
     {
-        self waittill( "grenade_fire", grenade, item );
+        self waittill("grenade_fire", grenade, item);
         wait 0.05;
         self setweaponammoclip(item, 1);
         self givemaxammo(item);
@@ -928,20 +872,6 @@ bot_move(args)
                 self iprintln("ߝ [ai] * trying to move all bots to ^+" + self.origin);
                 self play("recon_drone_marked_owner");
             }
-        }
-    }
-}
-
-bot_move_b(args)
-{
-    foreach(player in level.players) 
-    {
-        if (issubstr(player.name, args[0])) 
-        {
-            player setorigin(self.origin);
-            player save_spawn();
-            self iprintln("ߝ [ai] * ^+" + player.name + " ^7moved to ^+" + self.origin);
-            self play("recon_drone_marked_owner");
         }
     }
 }
@@ -1981,15 +1911,40 @@ headbounces()
     }
 }
 
-disable_dodging() // sliding
+start_weapon_monitor(args)
 {
-    level endon("game_ended");
+    if (int(args[0]) == 1)
+    {
+        self notify("stop_weapon_monitor");
+        self thread monitor_weapons();
+        self setpers("weapon_monitor", true);
+        self iprintln( "ߝ [player] * ^2weapon monitor enabled" );
+    }
+    else
+    {
+        self notify("stop_weapon_monitor");
+        self setpers("weapon_monitor", false);
+        self iprintln( "ߝ [player] * ^1weapon monitor disabled" );
+    }
+}
+
+monitor_weapons()
+{
     self endon("disconnect");
-    self endon("stop_dodges");
+    self endon("stop_weapon_monitor");
+    level endon("game_ended");
+
     for(;;)
     {
-        self allowdodge(0);
-        wait 0.1;
+        self waittill("weapon_change");
+
+        a = self getcurrentweapon().basename;
+        b = self scripts\cp_mp\utility\inventory_utility::getcurrentprimaryweaponsminusalt().basename;
+        c = self getaltweapon().basename;
+        
+        self iprintln("current: ^5" + a);
+        self iprintln("minus alt: ^5" + b);
+        self iprintln("alt: ^5" + c);
     }
 }
 
@@ -2181,27 +2136,7 @@ play(sound, type) // jukeboxxxx
     }
 }
 
-monitor_weapons()
-{
-    self endon("disconnect");
-    self endon("stop_weapon_monitor");
-    level endon("game_ended");
-
-    for(;;)
-    {
-        self waittill("weapon_change");
-
-        a = self getcurrentweapon().basename;
-        b = self scripts\cp_mp\utility\inventory_utility::getcurrentprimaryweaponsminusalt().basename;
-        c = self getaltweapon().basename;
-        
-        self iprintln("current: ^5" + a);
-        self iprintln("minus alt: ^5" + b);
-        self iprintln("alt: ^5" + c);
-    }
-}
-
-round_manager() // mw19 goes to 6 rounds. also doesnt watch killcams on level ?
+round_manager()
 {
     random_round_axis = randomint(5);
     random_round_ally = randomint(5);
