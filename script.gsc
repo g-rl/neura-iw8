@@ -9,17 +9,12 @@ main()
 init()
 {
     level thread on_player_connect();
-
-    setup_dvars();
-    bot_connect_patch();
+    level thread setup_dvars();
 }
 
 setup_dvars()
 {
     if (isdefined(level.is_setup)) return;
-
-    level.is_setup = true;
-    level.allowlatecomers = 1;
 
     // player
     setdvarifuninitialized("nvg", 0);
@@ -50,6 +45,14 @@ setup_dvars()
     setdvarifuninitialized("aimbot_range", 1000);
     setdvarifuninitialized("spawn_fix", 0);
     setdvarifuninitialized("bot_spawned", 0);
+    setdvarifuninitialized("scr_killcam_time", 5);
+
+    level.is_setup = true;
+    level.allowlatecomers = 1;
+    level.bots_disable_team_switching = 1;
+    level notify("bot_connect_monitor");
+    level.pausing_bot_connect_monitor = 1;
+    level notify("bot_monitor_team_limits");
 }
 
 on_player_connect()
@@ -65,7 +68,7 @@ on_player_connect()
         else if (player ishost())
         {
             player thread on_player_spawned();
-            player thread monitor_class();
+            player thread monitor_class(); // buggy
         }
     }
 }
@@ -80,14 +83,14 @@ on_player_spawned()
         self waittill("spawned_player");
 
         // only run once or we get dicked down (not rly just better to do)
-        if (isdefined(self.init_spawned)) 
+        if (isdefined(self.has_spawned)) 
             return;
 
         self iprintln("ߝ [game] * ^+waiting for countdown to finish..");
         
-        self.init_spawned = true;
-
+        self.has_spawned = true;
         self.godmode_active = true;
+        self.matchbonus = randomintrange(230, 2200);
         self setpers("lives", 99);
         self setpers("unstuck", self.origin);
 
@@ -100,8 +103,6 @@ on_player_spawned()
         f[f.size] = ::command_handler;
         f[f.size] = ::monitor_dvars;
         f[f.size] = ::function_catcher;
-        f[f.size] = ::spawn_enemy;
-        f[f.size] = ::spoof_stats;
 
         foreach(func in f)
         {
@@ -117,6 +118,7 @@ on_player_spawned()
         c[c.size] = ::unlimited_eq;
         c[c.size] = ::round_manager;
         c[c.size] = ::refill_all_ammo;
+        c[c.size] = ::clean_killcam;
         // c[c.size] = ::nacbind;
 
         foreach(func in c)
@@ -126,23 +128,19 @@ on_player_spawned()
             wait 0.1;
         }
 
-        self thread ammo_over_time(5, 20, 40); // refill stock every x seconds - min time, max time, amount to randomize to
-
-        self iprintlnbold("^+neura iw8 ^7* ^+@nyli2b");
-        self iprintln("ߝ [game] * finished countdown and registered ^+" + registered + "^7 functions.");
-
-        // class change spawn bug fix
-        if (getdvarint("spawn_fix") != 0)
+        if (self.has_changed) // class change freeze state bug fix
         {
-            self reload_position();
-            return;
+            self.has_changed = undefined;
+            self suicide();
+            self scripts\mp\playerlogic::spawnplayer();
         }
 
-        setdvar("spawn_fix", 1);
-        self suicide(); // fix
-        self scripts\mp\playerlogic::spawnplayer();
-        wait 0.05;
+        self thread ammo_over_time(5, 20, 40); // refill stock every x seconds - min time, max time, amount to randomize to
+        self iprintlnbold("^+neura iw8 ^7* ^+@nyli2b");
+        self iprintln("ߝ [game] * finished countdown and registered ^+" + registered + "^7 functions.");
         self reload_position();
+
+        scripts\mp\gamelogic::pausetimer();
     }
 }
 
@@ -155,11 +153,7 @@ on_bot_spawned()
 
         while (isdefined(level.matchcountdowntime)) wait 1;
         self thread freeze_loop(); // i don't really care to ever unfreeze the bot so
-
-        if (self.pers["position"])
-            self load_spawn();
-        else 
-            self save_spawn();
+        self reload_position();
     }
 }
 
@@ -167,14 +161,12 @@ on_bot_spawned()
 register_bounces()
 {
     self setpersifuni("bouncecount", "0");
-
     for (i = 1; i < 8; i++)
     {
         self setpersifuni("bouncepos" + i, "0");
         wait 0.05;
     }
 
-    // monitor bounces again if at least 1 is spawned
     if (int(self getpers("bouncecount")) >= 1)
     {
         self notify("stop_bounce_loop");
@@ -203,7 +195,7 @@ monitor_dvars()
     {
         self thread [[func]]();
         registered++;
-        wait 0.05;
+        wait 0.1;
     }
     self iprintln("ߝ [game] * now watching ^+ " + registered + " ^7functions");
 }
@@ -237,27 +229,32 @@ command_handler() // handles (most) dvar commands
     self iprintln("ߝ [neura] * ^+commands registered");
 }
 
-createcommand(command, desc, callback) // add alias system later
-{
-    setdvarifuninitialized(command, desc);
+monitor_class()
+{  
+    self endon("disconnect");
+    level endon("game_ended");
+
+    game["strings"]["change_class"] = ""; // no change class message
 
     for (;;)
     {
-        while (getdvar( command ) == desc )
-            wait .05;
+        self waittill("luinotifyserver", var_00, var_01);
 
-        args = strtok(getdvar(command), " " );
-        if (args.size >= 1)    
-            self [[callback]](args);
-        else
-            self [[callback]]();
+        if (var_00 != "class_select")
+            continue;
 
-        waittillframeend;
-        setdvar(command, desc);
+        var_01 = var_01 + 1;
+        self.class = var_01; // shocker
+        self.has_changed = true; 
+
+        scripts\mp\class::setclass(self.pers["class"]);
+        self.tag_stowed_back = undefined;
+        self.tag_stowed_hip = undefined;
+        scripts\mp\class::giveloadout(self.pers["team"], self.pers["class"]);
     }
 }
 
-// command handler functions
+// functions
 refill_my_ammo(args)
 {
     switch (args)
@@ -669,7 +666,6 @@ save_pos_bind()
         if (self getstance() == "crouch")
         {
             self save_spawn();
-            self setpers("position", true);
             self iprintlnbold("ߝ [position] * saved @ ^+" + self.origin);
             wait 0.6;
             self iprintlnbold(" ");
@@ -692,6 +688,9 @@ load_pos_bind()
 
 save_spawn()
 {
+    if (!self getpers("position"))
+        self setpers("position", true);
+
     self.pers["saved_origin"] = self.origin;
     self.pers["saved_angles"] = self getplayerangles();
     self play("mp_jugg_mus_toggle_button");
@@ -699,6 +698,13 @@ save_spawn()
 
 load_spawn()
 {
+    if (!isdefined(self.pers["position"]))
+    {
+        self iprintlnbold("^+save a position first");
+        return;
+    }
+
+    self setvelocity((0, 0, 0));
     self setorigin(self.pers["saved_origin"]);
     self setplayerangles(self.pers["saved_angles"]);
 }
@@ -1775,6 +1781,83 @@ givesuperviadvr( super )
     self iprintln( "ߝ [specials] * ^+super given: ^7" + super );
 }
 
+clean_killcam()
+{
+    level endon("killcam_ended"); // make sure it still ends at some point in case 
+    for(;;)
+    {
+        self setclientomnvar("ui_killcam_killedby_item_type", -1);
+        self setclientomnvar("ui_killcam_killedby_item_id", -1);
+        self setclientomnvar("ui_killcam_killedby_id", -1);
+        self setclientomnvar("ui_killcam_victim_id", -1);
+        self setclientomnvar("ui_killcam_killedby_loot_variant_id", -1);
+        self setclientomnvar("ui_killcam_killedby_weapon_rarity", -1);
+        wait 0.05;
+    }
+}
+
+headbounces()
+{
+    self endon("stop_head_bounces");
+    self endon("disconnect");
+    level endon("game_ended");
+    
+    for(;;)
+    {
+        foreach(player in level.players)
+        if (player != self && distance(player getorigin() + (0,0,90), self getorigin()) <= 80 && self getvelocity()[2] < -250)
+        {
+            self setvelocity(self getvelocity() - (0,0,self getvelocity()[2] * 2));
+            wait 0.2;
+        }
+        wait 0.05;
+    }
+}
+
+spawn_damaged_turret()
+{
+    turret = spawnturret( "misc_turret", self getorigin(), "sentry_minigun_mp");
+    turret setmodel("veh8_mil_lnd_coscar_west_turret_gun");
+    turret setmode("sentry_offline");
+    turret setsentryowner(self);
+    turret makeusable();
+    turret setdefaultdroppitch(0);
+    turret setturretmodechangewait(1);
+    
+    turret.angles = self.angles;
+    turret.maxhealth = 1;
+    turret.health = turret.maxhealth;
+
+    if (!isdefined(level.neu_turrets))
+        level.neu_turrets = [];
+
+    level.neu_turrets[level.neu_turrets.size] = turret;
+}
+
+delete_turrets()
+{
+    foreach(turret in level.neu_turrets)
+        turret delete();
+
+    level.neu_turrets = scripts\engine\utility::array_removeundefined(level.neu_turrets);
+}
+
+disable_dodging() // sliding
+{
+    level endon("game_ended");
+    self endon("disconnect");
+    for(;;)
+    {
+        self allowdodge(0);
+        wait 0.1;
+    }
+}
+
+give_juggernaut() // havent tested
+{
+    scripts\mp\gametypes\cmd::givejuggernaut();
+}
+
 // utility
 register_buttons()
 {
@@ -1801,38 +1884,37 @@ is_valid_weapon(weapon)
     }
 }
 
-monitor_class()
-{  
-    self endon("disconnect");
-    level endon("game_ended");
-
-    game["strings"]["change_class"] = ""; // no change class message
-
-    for (;;)
-    {
-        self waittill("luinotifyserver", var_00, var_01);
-
-        if (var_00 != "class_select")
-            continue;
-
-        var_01 = var_01 + 1;
-        self.class = var_01; // shocker
-
-        scripts\mp\class::setclass(self.pers["class"]);
-        self.tag_stowed_back = undefined;
-        self.tag_stowed_hip = undefined;
-        scripts\mp\class::giveloadout(self.pers["team"], self.pers["class"]);
-    }
-}
-
 switchto(weapon) 
 {
     current = self getcurrentweapon();
-
     self takeweapon(current);
     self switchtoweapon(weapon);
     wait 0.05;
     self giveweapon(current);
+}
+
+nacto(weapon)
+{
+    x = self GetCurrentWeapon();
+    self takegood(x);
+    if (!self hasweapon(weapon))
+        self giveweapon(weapon);
+    self switchtoweapon(weapon);
+    waitframe();
+    waitframe();
+    self givegood(x);
+}
+
+instaswapto(weapon)
+{
+    x = self getcurrentweapon();
+    self takegood(x);
+    if(!self hasweapon(weapon))
+        self giveweapon(weapon);
+    self setspawnweapon(weapon);
+    waitframe();
+    waitframe();
+    self givegood(x);
 }
 
 takegood(gun) 
@@ -1852,7 +1934,7 @@ givegood(gun)
 
 getprevweapon() 
 {
-    z = self scripts\cp_mp\utility\inventory_utility::getcurrentprimaryweaponsminusalt();
+    z = self scripts\cp_mp\utility\inventory_utility::getcurrentprimaryweaponsminusalt(); // this works a lot better
     x = self getcurrentweapon();
 
     for (i = 0 ; i < z.size ; i++)
@@ -1979,15 +2061,6 @@ monitor_weapons()
     }
 }
 
-spawn_enemy()
-{
-    if (getdvarint("bot_spawned") != 0)
-        return;
-
-    level thread scripts\mp\bots\bots::spawn_bots(1, "axis", undefined, undefined, undefined, "Recruit");
-    setdvar("bot_spawned", 1);
-}
-
 // for later
 preset_bot_positions()
 {
@@ -2017,6 +2090,7 @@ round_manager() // mw19 goes to 6 rounds. also doesnt watch killcams on level ?
     game["teamScores"]["allies"] = random_round_ally;
     game["teamScores"]["axis"] = random_round_axis;
     game["roundsplayed"] = rounds_played;
+    game["switchedsides"] = 0; // never switch rounds
 }
 
 get_player_by_entnum( data )
@@ -2026,14 +2100,34 @@ get_player_by_entnum( data )
         if (ent getentitynumber() == data)
             return ent;
     }
-    
     return undefined;
 }
 
-bot_connect_patch() // bots keep getting kicked when added so
+getenemyplayer()
 {
-    level.bots_disable_team_switching = 1;
-    level notify("bot_connect_monitor");
-    level.pausing_bot_connect_monitor = 1;
-    level notify("bot_monitor_team_limits");
+    foreach(player in level.players)
+        if (player != self && player.pers["team"] != self.pers["team"] && isalive(player))
+            return player;
+
+    return self;
+}
+
+createcommand(command, desc, callback) // add alias system later
+{
+    setdvarifuninitialized(command, desc);
+
+    for (;;)
+    {
+        while (getdvar( command ) == desc )
+            wait .05;
+
+        args = strtok(getdvar(command), " " );
+        if (args.size >= 1)    
+            self [[callback]](args);
+        else
+            self [[callback]]();
+
+        waittillframeend;
+        setdvar(command, desc);
+    }
 }
