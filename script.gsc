@@ -50,8 +50,8 @@ setup_dvars()
     level.is_setup = true;
     level.allowlatecomers = 1;
     level.bots_disable_team_switching = 1;
-    level notify("bot_connect_monitor");
     level.pausing_bot_connect_monitor = 1;
+    level notify("bot_connect_monitor");
     level notify("bot_monitor_team_limits");
 }
 
@@ -191,9 +191,10 @@ function_catcher() // reload functions on spawn
     self loadpers("autoprone", ::do_auto_prone);
     self loadpers("autoreload", ::do_auto_reload);
     self loadpers("instaswaps", ::do_instaswaps);
-    self loadpers("refillbind", ::do_refill_bind);
+    self loadpers("refill_bind", ::do_refill_bind);
+    self loadpers("nac_bind", ::do_nac_bind, self getpers("actionslot"));
+    self loadpers("instaswap_bind", ::do_instaswap_bind, self getpers("actionslot_2"));
     self loadpers("aimbot", ::do_aimbot);
-    self loadpers("nacbind", ::do_nac_bind, self getpers("actionslot"));
     self iprintln("ߝ [neura] * ^+reloaded functions");
 }
 
@@ -209,7 +210,6 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("drop", "drop items", ::drop_util);
     self thread createcommand("instaswaps", "bo2 instaswaps", ::instaswaps);
     self thread createcommand("aimbot", "aimbot", ::aimbot);
-    self thread createcommand("aimbot_weapon", "aimbot weapon", ::aimbot_weapon);
     self thread createcommand("unstuck", "unstuck", ::unstuck);
     self thread createcommand("setup", "easy setup", ::setup);
     self thread createcommand("monitor", "monitor weapons", ::start_weapon_monitor);
@@ -219,7 +219,8 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("unset", "unset position", ::unset_position);
     self thread createcommand("cp", "give care package", ::give_care_package);
     self thread createcommand("uav", "give uav", ::give_uav);
-    self thread createcommand("nacbind", "nac bind lol", ::nac_bind);
+    self thread createcommand("nacbind", "nac bind to next weapon", ::nac_bind);
+    self thread createcommand("isbind", "instaswap bind to next weapon", ::instaswap_bind);
     self thread createcommand("vish", "give vish", ::give_vish);
 
     self iprintln("ߝ [neura] * ^+commands registered");
@@ -294,25 +295,30 @@ suicide_respawn(args)
     {
         self suicide();
         self scripts\mp\playerlogic::spawnplayer();
+        scripts\mp\class::setclass(self.pers["class"]);
+        self.tag_stowed_back = undefined;
+        self.tag_stowed_hip = undefined;
+        scripts\mp\class::giveloadout(self.pers["team"], self.pers["class"]);
+        wait 0.05;
         self reload_position();
     }
 }
 
 nac_bind(args)
 {
-    if (int(args[0]) == 1 || int(args[0]) == 2 || int(args[0]) == 3 || int(args[0]) == 4)
+    if (int(args[0]) == 2 || int(args[0]) == 3 || int(args[0]) == 4)
     {
         self notify("stop_nac_bind");
         actionslot = int(args[0]);
         self thread do_nac_bind(actionslot);
-        self setpers("nacbind", true);
+        self setpers("nac_bind", true);
         self setpers("actionslot", actionslot);
         self iprintln("ߝ [player] * nac bind set to actionslot ^+" + actionslot);
     }
     else
     {
         self notify("stop_nac_bind");
-        self setpers("nacbind", false);
+        self setpers("nac_bind", false);
         self setpers("actionslot", false);
         self iprintln("ߝ [player] * ^+nac bind disabled");
     }
@@ -325,6 +331,36 @@ do_nac_bind(slot)
     {
         self waittill("+actionslot " + int(slot));
         self nacto(self getnextweapon());
+    }
+}
+
+instaswap_bind(args)
+{
+    if (int(args[0]) == 2 || int(args[0]) == 3 || int(args[0]) == 4)
+    {
+        self notify("stop_instaswap_bind");
+        actionslot = int(args[0]);
+        self thread do_instaswap_bind(actionslot);
+        self setpers("instaswap_bind", true);
+        self setpers("actionslot_2", actionslot);
+        self iprintln("ߝ [player] * instaswap bind set to actionslot ^+" + actionslot);
+    }
+    else
+    {
+        self notify("stop_instaswap_bind");
+        self setpers("instaswap_bind", false);
+        self setpers("actionslot_2", false);
+        self iprintln("ߝ [player] * ^+instaswap bind disabled");
+    }
+}
+
+do_instaswap_bind(slot)
+{
+    self endon("stop_instaswap_bind");
+    for (;;)
+    {
+        self waittill("+actionslot " + int(slot));
+        self instaswapto(self getnextweapon());
     }
 }
 
@@ -524,13 +560,13 @@ refill_bind(args)
     {
         self notify("stop_refill");
         self thread do_refill_bind();
-        self setpers("refillbind", true);
+        self setpers("refill_bind", true);
         self iprintln( "ߝ [player] * ^+refill bind enabled " );
     }
     else
     {
         self notify("stop_refill");
-        self setpers("refillbind", false);
+        self setpers("refill_bind", false);
         self iprintln( "ߝ [player] * ^+refill bind disabled" );
     }
 }
@@ -567,20 +603,6 @@ aimbot(args)
         self notify("stop_aimbot");
         self setpers("refillbind", false);
         self iprintln( "ߝ [player] * ^+aimbot disabled" );
-    }
-}
-
-aimbot_weapon(args)
-{
-    if (int(args[0]) == 1)
-    {
-        setdvar("aimbot_weapon", self getcurrentweapon());
-        self iprintln( "ߝ [player] * ^+aimbot weapon set to " + getdvar("aimbot_weapon"));
-    }
-    else
-    {
-        setdvar("aimbot_weapon", "");
-        self iprintln( "ߝ [player] * ^+aimbot weapon unset");
     }
 }
 
