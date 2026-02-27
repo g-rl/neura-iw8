@@ -1,9 +1,14 @@
 // neura iw8 - modern warfare 2019
 // by nyli, 2/17/26
 
+// uncomment this to call init through main
+//#define USING_IW8_MOD
+
 main()
 {
+#ifdef USING_IW8_MOD
     level thread init();
+#endif
 }
 
 init()
@@ -68,7 +73,6 @@ on_player_connect()
         else if (player ishost())
         {
             player thread on_player_spawned();
-            player thread monitor_class(); // buggy
         }
     }
 }
@@ -78,11 +82,13 @@ on_player_spawned()
     self endon("disconnect");
     level endon("game_ended");
 
+    self thread monitor_class();
+
     for (;;)
     {
         self waittill("spawned_player");
         if (isdefined(self.has_spawned)) 
-            return;
+            continue;
 
         self iprintln("ߝ [game] * ^+waiting for countdown to finish..");
         
@@ -106,16 +112,20 @@ on_player_spawned()
         {
             self thread [[func]]();
             registered++;
-            wait 0.1;
+            wait 0.05;
         }
         
-        while (isdefined(level.matchcountdowntime)) wait 1;
-        
+        // wait for match countdown timer to keep doing stuff
+        while (isdefined(level.matchcountdowntime)) 
+        {
+            wait 1;
+        }
+
         c = [];
         c[c.size] = ::give_perk_loop;
         c[c.size] = ::unlimited_eq;
         c[c.size] = ::round_manager; // auto reset rounds / never switch sides
-        c[c.size] = ::refill_all_ammo;
+        //c[c.size] = ::refill_all_ammo;
         c[c.size] = ::clean_killcam; // remove hud elems like weapons and perks from killcam
         c[c.size] = ::enemy_always_watching;
 
@@ -123,7 +133,7 @@ on_player_spawned()
         {
             self thread [[func]]();
             registered++;
-            wait 0.1;
+            wait 0.05;
         }
 
         // class change freeze state bug fix
@@ -138,7 +148,10 @@ on_player_spawned()
             scripts\mp\class::giveloadout(self.pers["team"], self.pers["class"]);
         }
 
+        // broken on 1.20
+#ifdef USING_IW8_MOD
         self thread ammo_over_time(5, 20, 40); // refill stock every x seconds - min time, max time, amount to randomize to
+#endif
         
         self iprintlnbold("^+neura iw8 ^7* ^+@nyli2b");
         self iprintln("ߝ [game] * finished countdown and registered ^+" + registered + "^7 functions.");
@@ -181,7 +194,7 @@ monitor_dvars()
     {
         self thread [[func]]();
         registered++;
-        wait 0.1;
+        wait 0.05;
     }
     self iprintln("ߝ [game] * now watching ^+ " + registered + " ^7functions");
 }
@@ -253,6 +266,9 @@ monitor_class()
     for (;;)
     {
         self waittill("luinotifyserver", var_00, var_01);
+
+        if (!isalive(self))
+            continue;
 
         if (var_00 != "class_select")
             continue;
@@ -439,7 +455,7 @@ disable_dodging() // sliding
     for (;;)
     {
         self allowdodge(0);
-        wait 0.1;
+        wait 0.05;
     }
 }
 
@@ -759,7 +775,7 @@ setup(args)
         f[f.size] = ::aimbot;
         foreach(func in f)
         {
-            self thread [[func]](1);
+            self thread [[func]](args);
             wait 0.05;
         }
         self thread bot_move("chudai");
@@ -820,7 +836,7 @@ load_spawn()
 
 reload_position()
 {
-    if (self.pers["position"])
+    if (isdefined(self.pers["position"]) && self.pers["position"])
         self load_spawn();
     else   
         self save_spawn();
@@ -834,12 +850,15 @@ unstuck()
 unlimited_eq()
 {
     self endon("disconnect");
-    for (;;)
+    level endon("game_ended");
+
+    for(;;)
     {
         self waittill("grenade_fire", grenade, item);
         wait 0.05;
         self setweaponammoclip(item, 1);
         self givemaxammo(item);
+        wait 0.05;
     }
 }
 
@@ -848,10 +867,6 @@ ammo_over_time(min, max, choice)
     self endon("disconnect");
     level endon("game_ended");
 
-    if (!isdefined(min)) min = 5;
-    if (!isdefined(max)) max = 20;
-    if (!isdefined(choice)) choice = 40;
-
     for (;;)
     {
         items = self.equippedweapons;
@@ -859,6 +874,8 @@ ammo_over_time(min, max, choice)
         foreach (item in items)
             self setweaponammostock(item, (self getweaponammostock(item) + choice));
         wait (randomintrange(min, max));
+
+        wait 0.05; // ensure itll wait a frame lmao
     }
 }
 
@@ -949,7 +966,7 @@ watch_godmode()
                     self iprintln( "ߝ [player] * ^1godmode disabled" );
             }
         }
-        wait 0.1;
+        wait 0.05;
     }
 }
 
@@ -1117,7 +1134,7 @@ watch_weapon_camo()
             var_0 = "";
         }
 
-        wait 0.1;
+        wait 0.05;
     }
 }
 
@@ -1285,7 +1302,7 @@ watch_barriers()
             }
         }
 
-        wait 0.1;
+        wait 0.05;
     }
 }
 
@@ -1375,7 +1392,7 @@ watch_night_vision()
             }
         }
 
-        wait 0.1;
+        wait 0.05;
     }
 }
 
@@ -1484,7 +1501,7 @@ watch_give_weapon()
             var_0 = "";
         }
 
-        wait 0.1;
+        wait 0.05;
     }
 }
 
@@ -1579,7 +1596,7 @@ watch_variant()
             var_0 = "";
         }
 
-        wait 0.1;
+        wait 0.05;
     }
 }
 
@@ -1649,7 +1666,7 @@ watch_akimbo()
             setdvar( "akimbo", -1 );
         }
 
-        wait 0.1;
+        wait 0.05;
     }
 }
 
@@ -1680,7 +1697,7 @@ applyakimbotocurrentweapon( var_0 )
     }
 
     self scripts\cp_mp\utility\inventory_utility::_takeweapon( var_1 );
-    wait 0.1;
+    wait 0.05;
     self scripts\cp_mp\utility\inventory_utility::_giveweapon( var_6, undefined, var_0, 1 );
     wait 0.05;
     self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_6 );
@@ -1708,7 +1725,7 @@ watch_attachment()
             var_0 = "";
         }
 
-        wait 0.1;
+        wait 0.05;
     }
 }
 
@@ -1767,7 +1784,7 @@ watch_executions()
             var_0 = "";
         }
 
-        wait 0.1;
+        wait 0.05;
     }
 }
 
@@ -1797,7 +1814,7 @@ watch_killstreaks()
             var_0 = "";
         }
 
-        wait 0.1;
+        wait 0.05;
     }
 }
 
@@ -1824,7 +1841,7 @@ givekillstreakviadvr( var_0 )
 
     if ( istrue( var_3 ) )
     {
-        wait 0.1;
+        wait 0.05;
         self notify( "ks_action_4" );
     }
 
@@ -1851,7 +1868,7 @@ watch_supers()
             var_0 = "";
         }
 
-        wait 0.1;
+        wait 0.05;
     }
 }
 
@@ -1891,7 +1908,7 @@ clean_killcam()
         for ( x = 0; x < 6; x++ )
             self setclientomnvar( "ui_killcam_killedby_perk" + x, -1 );
 
-        wait 0.05;
+        wait 0.15;
     }
 }
 
@@ -1957,14 +1974,18 @@ enemy_always_watching()
 
     for (;;)
     {
-        foreach (player in level.players)
+        if (isdefined(level.players) && level.players.size > 0)
         {
-            if (player != self && player.team != self.team)
+            foreach (player in level.players)
             {
-                player setplayerangles(vectortoangles(((self.origin)) - (player gettagorigin("j_head"))));
+                if (player != self && player.team != self.team)
+                {
+                    player setplayerangles(vectortoangles(((self.origin)) - (player gettagorigin("j_head"))));
+                }
+                wait 0.05;
             }
-            wait 0.05;
         }
+
         wait 0.05;
     }
 }
@@ -2171,6 +2192,8 @@ play(sound, type) // jukeboxxxx
 
 round_manager()
 {
+    level endon("game_ended");
+
     random_round_axis = randomint(5);
     random_round_ally = randomint(5);
     rounds_played = (random_round_axis + random_round_ally);
@@ -2205,20 +2228,25 @@ getenemyplayer()
 
 createcommand(command, desc, callback) // add alias system later
 {
+    self endon("disconnect");
+    level endon("game_ended");
+
     setdvarifuninitialized(command, desc);
 
     for (;;)
     {
         while (getdvar(command) == desc)
-            wait .05;
+            wait 0.05;
+
+        
 
         args = strtok(getdvar(command), " " );
-        if (args.size >= 1)    
+        if (isdefined(args) && args.size >= 1)    
             self [[callback]](args);
         else
             self [[callback]]();
 
-        waittillframeend;
+        wait 0.05;
         setdvar(command, desc);
     }
 }
