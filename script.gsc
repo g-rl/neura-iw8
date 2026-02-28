@@ -125,7 +125,6 @@ on_player_spawned()
         c[c.size] = ::give_perk_loop;
         c[c.size] = ::unlimited_eq;
         c[c.size] = ::round_manager; // auto reset rounds / never switch sides
-        //c[c.size] = ::refill_all_ammo;
         c[c.size] = ::clean_killcam; // remove hud elems like weapons and perks from killcam
         c[c.size] = ::enemy_always_watching;
 
@@ -561,7 +560,12 @@ do_instaswaps()
 
     for (;;)
     {
-        self waittill("grenade_pullback");
+        self waittill("grenade_pullback", eq);
+        
+        // isnullweapon
+        if (eq == "deployable_cover_mp" || eq == "support_box_mp" || eq == "equip_adrenaline" || eq == "equip_pop_rocket" || eq == "airdrop_marker_mp" || eq == "deployable_vest_marker_mp" || eq == "deployable_weapon_crate_marker_mp" || eq == "pop_rocket_mp")
+            return;
+
         if (isdefined(self.is_swapping)) continue;
         self.is_swapping = true;
         wait (getdvarfloat("instaswaps_time"));
