@@ -429,7 +429,7 @@ velocity_bind(args)
 
 do_velocity_bind(slot)
 {
-    self endon("stop_instaswap_bind");
+    self endon("stop_velocity_bind");
     for (;;)
     {
         self waittill("+actionslot " + int(slot));
@@ -500,7 +500,7 @@ bolt_movement_bind(args)
 
 do_bolt_movement_bind(slot)
 {
-    self endon("stop_instaswap_bind");
+    self endon("stop_bolt_movement_bind");
     for (;;)
     {
         self waittill("+actionslot " + int(slot));
@@ -553,7 +553,7 @@ bounce_bind(args)
 
 do_bounce_bind(slot)
 {
-    self endon("stop_instaswap_bind");
+    self endon("stop_bounce_bind");
     for (;;)
     {
         self waittill("+actionslot " + int(slot));
