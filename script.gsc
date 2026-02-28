@@ -51,9 +51,6 @@ setup_dvars()
     setdvarifuninitialized("aimbot_range", 1200);
     setdvarifuninitialized("scr_killcam_time", 5);
     setdvarifuninitialized("slomo", 1);
-    setdvarifuninitialized("velx", 0);
-    setdvarifuninitialized("vely", 0);
-    setdvarifuninitialized("velz", 0);
 
     level.is_setup = true;
     level.allowlatecomers = 1;
@@ -109,6 +106,7 @@ on_player_spawned()
         f[f.size] = ::register_buttons;
         f[f.size] = ::memory;
         f[f.size] = ::monitor_dvars;
+        f[f.size] = ::disable_gestures;
 
         foreach(func in f)
         {
@@ -121,6 +119,10 @@ on_player_spawned()
         while (isdefined(level.matchcountdowntime)) 
         {
             wait 1;
+            self setclientomnvar("ui_match_start_countdown", 0);
+            self setclientomnvar("ui_match_in_progress", 1);
+            scripts\mp\playerlogic::clearprematchlook(self);
+            level.matchcountdowntime = undefined;
         }
 
         c = [];
@@ -138,6 +140,7 @@ on_player_spawned()
         }
 
         // class change freeze state bug fix
+        /*
         if (self.has_changed)
         {
             self.has_changed = undefined;
@@ -148,6 +151,7 @@ on_player_spawned()
             self.tag_stowed_hip = undefined;
             scripts\mp\class::giveloadout(self.pers["team"], self.pers["class"]);
         }
+        */
 
         // broken on 1.20
 #ifdef USING_IW8_MOD
@@ -214,6 +218,9 @@ memory()
     self loadpers("bounce_bind", ::do_bounce_bind, self getpers("bounce_slot"));
     self loadpers("bolt_movement_bind", ::do_bolt_movement_bind, self getpers("bolt_slot"));
 
+    self setpersifuni("velx", 250);
+    self setpersifuni("vely", 250);
+    self setpersifuni("velz", 250);
     self setpersifuni("boltcount", "0");
     self setpersifuni("boltspeed", "1");
     for (i=1;i<8;i++)
@@ -269,6 +276,9 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("boltbind", "bolt movement bind", ::bolt_movement_bind);
     self thread createcommand("bolt", "manage bolt movement", ::manage_bolt);
     self thread createcommand("boltspeed", "change bolt speed", ::bolt_speed);
+    self thread createcommand("velx", "change x velocity", ::velx);
+    self thread createcommand("vely", "change y velocity", ::vely);
+    self thread createcommand("velz", "change z velocity", ::velz);
 
     self iprintln("ߝ [neura] * ^+commands registered");
 }
@@ -423,7 +433,46 @@ do_velocity_bind(slot)
     for (;;)
     {
         self waittill("+actionslot " + int(slot));
-        self setvelocity((float(getdvarfloat("velx")), float(getdvarfloat("vely")), float(getdvarfloat("velz"))));
+        self setvelocity(float(self getpers("velx")), float(self getpers("vely")), float(self getpers("velz")));
+    }
+}
+
+velx(args)
+{
+    if (float(args[0]))
+    {
+        self setpers("velx", float(args[0]));
+        self iprintlnbold("x velocity set to ^+" + float(args[0]));
+    }
+    else
+    {
+        self iprintlnbold("enter a valid weapon");
+    }
+}
+
+vely(args)
+{
+    if (float(args[0]))
+    {
+        self setpers("vely", float(args[0]));
+        self iprintlnbold("y velocity set to ^+" + float(args[0]));
+    }
+    else
+    {
+        self iprintlnbold("enter y valid weapon");
+    }
+}
+
+velz(args)
+{
+    if (float(args[0]))
+    {
+        self setpers("velz", float(args[0]));
+        self iprintlnbold("z velocity set to ^+" + float(args[0]));
+    }
+    else
+    {
+        self iprintlnbold("enter a valid weapon");
     }
 }
 
@@ -470,7 +519,7 @@ start_bolt()
     self.current_bolt = bolt_model; // store
     self playerlinkto(bolt_model);
 
-    for (i=1;i<(x + 1);i++)
+    for (i=1; i<(x + 1); i++)
     {
         keys = strtok(self getpers("boltpos" + i), ",");
         position = (float(keys[0]), float(keys[1]), float(keys[2]));
@@ -2520,3 +2569,16 @@ getrealweapons()
     return self scripts\cp_mp\utility\inventory_utility::getcurrentprimaryweaponsminusalt();
 }
 
+disable_gestures()
+{
+    self endon("disconnect");
+    self endon("begin_killcam");
+    for(;;)
+    {
+        self.disabledgesture = true;
+        self.gestureweapon = undefined;
+        self setactionslot(1, "");
+        self setactionslot(7, "");
+        wait 0.05;
+    }
+}
