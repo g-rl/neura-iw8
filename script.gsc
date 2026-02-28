@@ -2,7 +2,7 @@
 // by nyli, 2/17/26
 
 // uncomment this to call init through main
-//#define USING_IW8_MOD
+#define USING_IW8_MOD
 
 main()
 {
@@ -51,6 +51,9 @@ setup_dvars()
     setdvarifuninitialized("aimbot_range", 1200);
     setdvarifuninitialized("scr_killcam_time", 5);
     setdvarifuninitialized("slomo", 1);
+    setdvarifuninitialized("velx", 0);
+    setdvarifuninitialized("vely", 0);
+    setdvarifuninitialized("velz", 0);
 
     level.is_setup = true;
     level.allowlatecomers = 1;
@@ -104,9 +107,8 @@ on_player_spawned()
         f = [];
         f[f.size] = ::command_handler;
         f[f.size] = ::register_buttons;
-        f[f.size] = ::register_bounces;
+        f[f.size] = ::memory;
         f[f.size] = ::monitor_dvars;
-        f[f.size] = ::function_catcher;
 
         foreach(func in f)
         {
@@ -198,16 +200,43 @@ monitor_dvars()
     self iprintln("ߝ [game] * now watching ^+ " + registered + " ^7functions");
 }
 
-function_catcher() // reload functions on spawn
+memory()
 {
     self loadpers("autoprone", ::do_auto_prone);
     self loadpers("autoreload", ::do_auto_reload);
     self loadpers("instaswaps", ::do_instaswaps);
     self loadpers("refill_bind", ::do_refill_bind);
-    self loadpers("nac_bind", ::do_nac_bind, self getpers("actionslot"));
-    self loadpers("instaswap_bind", ::do_instaswap_bind, self getpers("actionslot_2"));
+    self loadpers("instashoots", ::do_instashoots);
     self loadpers("aimbot", ::do_aimbot);
-    self iprintln("ߝ [neura] * ^+reloaded functions");
+    self loadpers("nac_bind", ::do_nac_bind, self getpers("nac_slot"));
+    self loadpers("instaswap_bind", ::do_instaswap_bind, self getpers("is_slot"));
+    self loadpers("velocity_bind", ::do_velocity_bind, self getpers("vel_slot"));
+    self loadpers("bounce_bind", ::do_bounce_bind, self getpers("bounce_slot"));
+    self loadpers("bolt_movement_bind", ::do_bolt_movement_bind, self getpers("bolt_slot"));
+
+    self setpersifuni("boltcount", "0");
+    self setpersifuni("boltspeed", "1");
+    for (i=1;i<8;i++)
+    {
+        self setpersifuni("boltpos" + i, "0");
+        wait 0.05;
+    }
+
+    self setpersifuni("bouncecount", "0");
+    for (i = 1; i < 8; i++)
+    {
+        self setpersifuni("bouncepos" + i, "0");
+        wait 0.05;
+    }
+
+    if (int(self getpers("bouncecount")) >= 1)
+    {
+        self notify("stop_bounce_loop");
+        self thread monitor_bounces();
+        self iprintln("ߝ [game] * ^+ " + self getpers("bouncecount") + "^7 bounces reloaded");
+    }
+
+    self iprintlnbold("^+reloaded memory :3");
 }
 
 command_handler() // handles (most) dvar commands
@@ -234,25 +263,14 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("nacbind", "nac bind to next weapon", ::nac_bind);
     self thread createcommand("isbind", "instaswap bind to next weapon", ::instaswap_bind);
     self thread createcommand("vish", "give vish", ::give_vish);
+    self thread createcommand("instashoots", "toggle instashoots", ::instashoots);
+    self thread createcommand("velbind", "velocity bind", ::velocity_bind);
+    self thread createcommand("bouncebind", "bounce bind", ::bounce_bind);
+    self thread createcommand("boltbind", "bolt movement bind", ::bolt_movement_bind);
+    self thread createcommand("bolt", "manage bolt movement", ::manage_bolt);
+    self thread createcommand("boltspeed", "change bolt speed", ::bolt_speed);
 
     self iprintln("ߝ [neura] * ^+commands registered");
-}
-
-register_bounces()
-{
-    self setpersifuni("bouncecount", "0");
-    for (i = 1; i < 8; i++)
-    {
-        self setpersifuni("bouncepos" + i, "0");
-        wait 0.05;
-    }
-
-    if (int(self getpers("bouncecount")) >= 1)
-    {
-        self notify("stop_bounce_loop");
-        self thread monitor_bounces();
-        self iprintln("ߝ [game] * ^+ " + self getpers("bouncecount") + "^7 bounces reloaded");
-    }
 }
 
 monitor_class()
@@ -327,14 +345,14 @@ nac_bind(args)
         actionslot = int(args[0]);
         self thread do_nac_bind(actionslot);
         self setpers("nac_bind", true);
-        self setpers("actionslot", actionslot);
+        self setpers("nac_slot", actionslot);
         self iprintln("ߝ [player] * nac bind set to actionslot ^+" + actionslot);
     }
     else
     {
         self notify("stop_nac_bind");
         self setpers("nac_bind", false);
-        self setpers("actionslot", false);
+        self setpers("nac_slot", false);
         self iprintln("ߝ [player] * ^+nac bind disabled");
     }
 }
@@ -357,14 +375,14 @@ instaswap_bind(args)
         actionslot = int(args[0]);
         self thread do_instaswap_bind(actionslot);
         self setpers("instaswap_bind", true);
-        self setpers("actionslot_2", actionslot);
+        self setpers("is_slot", actionslot);
         self iprintln("ߝ [player] * instaswap bind set to actionslot ^+" + actionslot);
     }
     else
     {
         self notify("stop_instaswap_bind");
         self setpers("instaswap_bind", false);
-        self setpers("actionslot_2", false);
+        self setpers("is_slot", false);
         self iprintln("ߝ [player] * ^+instaswap bind disabled");
     }
 }
@@ -376,6 +394,121 @@ do_instaswap_bind(slot)
     {
         self waittill("+actionslot " + int(slot));
         self instaswapto(self getnextweapon());
+    }
+}
+
+velocity_bind(args)
+{
+    if (int(args[0]) == 2 || int(args[0]) == 3 || int(args[0]) == 4)
+    {
+        self notify("stop_velocity_bind");
+        actionslot = int(args[0]);
+        self thread do_velocity_bind(actionslot);
+        self setpers("velocity_bind", true);
+        self setpers("vel_slot", actionslot);
+        self iprintln("ߝ [player] * velocity bind set to actionslot ^+" + actionslot);
+    }
+    else
+    {
+        self notify("stop_velocity_bind");
+        self setpers("velocity_bind", false);
+        self setpers("vel_slot", false);
+        self iprintln("ߝ [player] * ^+velocity bind disabled");
+    }
+}
+
+do_velocity_bind(slot)
+{
+    self endon("stop_instaswap_bind");
+    for (;;)
+    {
+        self waittill("+actionslot " + int(slot));
+        self setvelocity((float(getdvarfloat("velx")), float(getdvarfloat("vely")), float(getdvarfloat("velz"))));
+    }
+}
+
+bolt_movement_bind(args)
+{
+    if (int(args[0]) == 2 || int(args[0]) == 3 || int(args[0]) == 4)
+    {
+        self notify("stop_bolt_movement_bind");
+        actionslot = int(args[0]);
+        self thread do_bolt_movement_bind(actionslot);
+        self setpers("bolt_movement_bind", true);
+        self setpers("bolt_slot", actionslot);
+        self iprintln("ߝ [player] * bolt_movement bind set to actionslot ^+" + actionslot);
+    }
+    else
+    {
+        self notify("stop_bolt_movement_bind");
+        self setpers("bolt_movement_bind", false);
+        self setpers("bolt_slot", false);
+        self unlink();
+        self.current_bolt delete();
+        self iprintln("ߝ [player] * ^+bolt_movement bind disabled");
+    }
+}
+
+do_bolt_movement_bind(slot)
+{
+    self endon("stop_instaswap_bind");
+    for (;;)
+    {
+        self waittill("+actionslot " + int(slot));
+        self start_bolt();
+    }
+}
+
+start_bolt()
+{
+    x = int (self getpers("boltcount"));
+    if (x == 0)
+        return self iprintlnbold("^1set bolt points first");
+
+    bolt_model = spawn("script_model", self.origin);
+    bolt_model setmodel("tag_origin");
+    self.current_bolt = bolt_model; // store
+    self playerlinkto(bolt_model);
+
+    for (i=1;i<(x + 1);i++)
+    {
+        keys = strtok(self getpers("boltpos" + i), ",");
+        position = (float(keys[0]), float(keys[1]), float(keys[2]));
+        bolt_model moveto(position, float(self getpers("boltspeed")), 0, 0);
+        wait float(self getpers("boltspeed"));
+    }
+
+    self unlink();
+    bolt_model delete();
+}
+
+bounce_bind(args)
+{
+    if (int(args[0]) == 2 || int(args[0]) == 3 || int(args[0]) == 4)
+    {
+        self notify("stop_bounce_bind");
+        actionslot = int(args[0]);
+        self thread do_bounce_bind(actionslot);
+        self setpers("bounce_bind", true);
+        self setpers("bounce_slot", actionslot);
+        self iprintln("ߝ [player] * bounce bind set to actionslot ^+" + actionslot);
+    }
+    else
+    {
+        self notify("stop_bounce_bind");
+        self setpers("bounce_bind", false);
+        self setpers("bounce_slot", false);
+        self iprintln("ߝ [player] * ^+bounce bind disabled");
+    }
+}
+
+do_bounce_bind(slot)
+{
+    self endon("stop_instaswap_bind");
+    for (;;)
+    {
+        self waittill("+actionslot " + int(slot));
+        self setvelocity(self getvelocity() - (0,0,self getvelocity()[2] * 2));
     }
 }
 
@@ -560,13 +693,19 @@ do_instaswaps()
 
     for (;;)
     {
-        self waittill("grenade_pullback", eq);
-        
-        // isnullweapon
-        if (eq == "deployable_cover_mp" || eq == "support_box_mp" || eq == "equip_adrenaline" || eq == "equip_pop_rocket" || eq == "airdrop_marker_mp" || eq == "deployable_vest_marker_mp" || eq == "deployable_weapon_crate_marker_mp" || eq == "pop_rocket_mp")
-            continue;
+        self waittill("grenade_pullback", grenade);
+        name = grenade.basename;
 
-        if (isdefined(self.is_swapping)) continue;
+        if (name == "deployable_cover_mp" || name == "support_box_mp" || name == "equip_adrenaline" || name == "airdrop_marker_mp" || name == "deployable_vest_marker_mp" || name == "deployable_weapon_crate_marker_mp")
+        {
+            continue;
+        }
+
+        if (isdefined(self.is_swapping))
+        {
+            continue;
+        }
+
         self.is_swapping = true;
         wait (getdvarfloat("instaswaps_time"));
         self switchto(self getprevweapon());
@@ -727,6 +866,60 @@ manage_bounce(args)
             self iprintln("ߝ [game] * ^+use spawn or delete..");
             break;        
     }
+}
+
+bolt_speed(args)
+{
+    if (float(args[0]))
+    {
+        self setpers("boltspeed", float(args[0]));
+        self iprintlnbold("bolt speed set to ^:" + float(args[0]));
+    } 
+    else 
+    {
+        self iprintlnbold("enter a valid number");
+    }
+}
+
+manage_bolt(args)
+{
+    switch (args[0])
+    {
+        case "save":
+            self thread save_bolt();
+            break;
+        case "delete":
+            self thread delete_last_bolt();
+            break;
+        default:
+            self iprintln("ߝ [game] * ^+use save or delete..");
+            break;        
+    }
+}
+
+save_bolt()
+{
+    x = getdvarint("boltcount");
+    if(x == 20)
+        return self iprintlnbold("^1max bolt points saved");
+
+    x++;
+    self setpers("boltcount", x);
+    self setpers("boltpos" + x, self getorigin()[0] + "," + self getorigin()[1] + "," + self getorigin()[2]);
+
+    self iprintlnbold("^:bolt point " + x + " saved");
+}
+
+delete_last_bolt()
+{
+    x = int(self getpers("boltcount"));
+    if(x == 0)
+        return self iprintlnbold("^1no points to delete");
+
+    self setpers("boltpos" + x, "0");
+    self iprintlnbold("^+bolt point " + x + " deleted");
+    x--;
+    self setpers("boltcount", x);
 }
 
 drop_util(args)
@@ -2006,16 +2199,35 @@ give_uav(args)
     thread scripts\mp\killstreaks\killstreaks::awardkillstreakfromstruct("uav", 0, 0, self);
 }
 
-instashoots()
+instashoots(args)
 {
-    self endon( "removal" );
-    self endon( "stop_instashoots" );
+    if (int(args[0]) == 1)
+    {
+        self notify("stop_instashoots");
+        self thread do_instashoots();
+        self setpers("instashoots", true);
+        self iprintln("ߝ [player] * ^+instashoots enabled");
+    }
+    else
+    {
+        self notify("stop_instashoots");
+        self setpers("instashoots", false);
+        self iprintln("ߝ [player] * ^+instashoots disabled");
+    }
+}
+
+
+do_instashoots()
+{
+    level endon("game_ended");
+    self endon("disconnect");
+    self endon("stop_instashoots");
 
     for (;;)
     {
         self waittill("weapon_change", weapon);
         self setspawnweapon(weapon);
-        self thread instashoot_logic();
+        // self thread instashoot_logic();
         wait 0.05;
     }
 }
@@ -2038,11 +2250,11 @@ instashoot_logic()
         
         if (is_valid_weapon(weapon))
         {
-            if (self attackbuttonpressed() && !self isreloading() && !self isswitchingweapons() && ( !self issprinting() && !self isusingremote() && !self isonladder() && !self ismantling()))
+            if (self attackbuttonpressed() && !self isreloading() && ( !self issprinting() && !self isonladder() && !self ismantling()))
             {
                 self disableweapons();
                 self setweaponammoclip(weapon, weaponclipsize(weapon));
-                wait .0000000001; // so fucking stupid but it works i guess ; idk
+                wait 0.05;
                 self enableweapons();
                 self notify("end_logic");
             }
@@ -2167,7 +2379,10 @@ getnextweapon()
 loadpers(key, func, args)
 {
     if (!self haspers(key))
+    {
+        self setpersifuni(key, false);
         return;
+    }
 
     wait 0.05;
     if (args)
@@ -2289,9 +2504,6 @@ createcommand(command, desc, callback) // add alias system later
     {
         while (getdvar(command) == desc)
             wait 0.05;
-
-        
-
         args = strtok(getdvar(command), " " );
         if (isdefined(args) && args.size >= 1)    
             self [[callback]](args);
@@ -2307,3 +2519,4 @@ getrealweapons()
 {
     return self scripts\cp_mp\utility\inventory_utility::getcurrentprimaryweaponsminusalt();
 }
+
