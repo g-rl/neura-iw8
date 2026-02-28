@@ -564,7 +564,7 @@ do_instaswaps()
         
         // isnullweapon
         if (eq == "deployable_cover_mp" || eq == "support_box_mp" || eq == "equip_adrenaline" || eq == "equip_pop_rocket" || eq == "airdrop_marker_mp" || eq == "deployable_vest_marker_mp" || eq == "deployable_weapon_crate_marker_mp" || eq == "pop_rocket_mp")
-            return;
+            continue;
 
         if (isdefined(self.is_swapping)) continue;
         self.is_swapping = true;
@@ -2004,6 +2004,54 @@ give_uav(args)
 {
     if (args[0])
     thread scripts\mp\killstreaks\killstreaks::awardkillstreakfromstruct("uav", 0, 0, self);
+}
+
+instashoots()
+{
+    self endon( "removal" );
+    self endon( "stop_instashoots" );
+
+    for (;;)
+    {
+        self waittill("weapon_change", weapon);
+        self setspawnweapon(weapon);
+        self thread instashoot_logic();
+        wait 0.05;
+    }
+}
+
+instashoot_logic()
+{
+    self endon("disconnect" );
+    self endon("reload_rechamber");
+    self endon("stop_instashoots");
+    self endon("death");
+    self endon("end_logic");
+    self endon("next_weapon");
+    self endon("weapon_armed");
+    self endon("weapon_fired");
+    self endon("sprinting");
+
+    for (;;)
+    {
+        weapon = self getcurrentweapon();
+        
+        if (is_valid_weapon(weapon))
+        {
+            if (self attackbuttonpressed() && !self isreloading() && !self isswitchingweapons() && ( !self issprinting() && !self isusingremote() && !self isonladder() && !self ismantling()))
+            {
+                self disableweapons();
+                self setweaponammoclip(weapon, weaponclipsize(weapon));
+                wait .0000000001; // so fucking stupid but it works i guess ; idk
+                self enableweapons();
+                self notify("end_logic");
+            }
+        }
+        else
+            self notify("end_logic");
+
+        wait 0.01;
+    }
 }
 
 // utility
