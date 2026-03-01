@@ -54,10 +54,6 @@ setup_dvars()
 
     level.is_setup = true;
     level.allowlatecomers = 1;
-    level.bots_disable_team_switching = 1;
-    level.pausing_bot_connect_monitor = 1;
-    level notify("bot_connect_monitor");
-    level notify("bot_monitor_team_limits");
 }
 
 on_player_connect()
@@ -89,14 +85,9 @@ on_player_spawned()
         self waittill("spawned_player");
         if (isdefined(self.has_spawned)) 
             continue;
-
-        self iprintln("ߝ [game] * ^+waiting for countdown to finish..");
         
         self.has_spawned = true;
         self.godmode_active = true;
-        self setpers("lives", 99);
-        self setpers("unstuck", self.origin);
-
         self giveachievement("FINISH"); // how you know the mod is loaded
 
         // trust me
@@ -106,7 +97,11 @@ on_player_spawned()
         f[f.size] = ::register_buttons;
         f[f.size] = ::memory;
         f[f.size] = ::monitor_dvars;
-        f[f.size] = ::disable_gestures;
+        f[f.size] = ::give_perk_loop;
+        f[f.size] = ::unlimited_eq;
+        f[f.size] = ::round_manager; // auto reset rounds / never switch sides
+        f[f.size] = ::clean_killcam; // remove hud elems like weapons and perks from killcam
+        f[f.size] = ::enemy_always_watching;
 
         foreach(func in f)
         {
@@ -115,7 +110,15 @@ on_player_spawned()
             wait 0.05;
         }
         
-        // wait for match countdown timer to keep doing stuff
+        self reload_position();
+        scripts\mp\gamelogic::pausetimer();
+        // broken on 1.20
+#ifdef USING_IW8_MOD
+        self thread ammo_over_time(5, 20, 40); // refill stock every x seconds - min time, max time, amount to randomize to
+#endif
+
+        self iprintlnbold("^+neura iw8 ^7* ^+@nyli2b ^7* registered ^+" + registered + "^7 functions");
+        // move before game start
         while (isdefined(level.matchcountdowntime)) 
         {
             wait 1;
@@ -124,45 +127,6 @@ on_player_spawned()
             scripts\mp\playerlogic::clearprematchlook(self);
             level.matchcountdowntime = undefined;
         }
-
-        c = [];
-        c[c.size] = ::give_perk_loop;
-        c[c.size] = ::unlimited_eq;
-        c[c.size] = ::round_manager; // auto reset rounds / never switch sides
-        c[c.size] = ::clean_killcam; // remove hud elems like weapons and perks from killcam
-        c[c.size] = ::enemy_always_watching;
-
-        foreach(func in c)
-        {
-            self thread [[func]]();
-            registered++;
-            wait 0.05;
-        }
-
-        // class change freeze state bug fix
-        /*
-        if (self.has_changed)
-        {
-            self.has_changed = undefined;
-            self suicide();
-            self scripts\mp\playerlogic::spawnplayer();
-            scripts\mp\class::setclass(self.pers["class"]);
-            self.tag_stowed_back = undefined;
-            self.tag_stowed_hip = undefined;
-            scripts\mp\class::giveloadout(self.pers["team"], self.pers["class"]);
-        }
-        */
-
-        // broken on 1.20
-#ifdef USING_IW8_MOD
-        self thread ammo_over_time(5, 20, 40); // refill stock every x seconds - min time, max time, amount to randomize to
-#endif
-        
-        self iprintlnbold("^+neura iw8 ^7* ^+@nyli2b");
-        self iprintln("ߝ [game] * finished countdown and registered ^+" + registered + "^7 functions.");
-        self reload_position();
-
-        scripts\mp\gamelogic::pausetimer();
     }
 }
 
@@ -201,23 +165,13 @@ monitor_dvars()
         registered++;
         wait 0.05;
     }
-    self iprintln("ߝ [game] * now watching ^+ " + registered + " ^7functions");
+    self iprintln("ߝ [game] * now watching ^+ " + registered + " ^7dvar functions");
 }
 
 memory()
 {
-    self loadpers("autoprone", ::do_auto_prone);
-    self loadpers("autoreload", ::do_auto_reload);
-    self loadpers("instaswaps", ::do_instaswaps);
-    self loadpers("refill_bind", ::do_refill_bind);
-    self loadpers("instashoots", ::do_instashoots);
-    self loadpers("aimbot", ::do_aimbot);
-    self loadpers("nac_bind", ::do_nac_bind, self getpers("nac_slot"));
-    self loadpers("instaswap_bind", ::do_instaswap_bind, self getpers("is_slot"));
-    self loadpers("velocity_bind", ::do_velocity_bind, self getpers("vel_slot"));
-    self loadpers("bounce_bind", ::do_bounce_bind, self getpers("bounce_slot"));
-    self loadpers("bolt_movement_bind", ::do_bolt_movement_bind, self getpers("bolt_slot"));
-
+    self setpers("lives", 99);
+    self setpers("unstuck", self.origin);
     self setpersifuni("velx", 250);
     self setpersifuni("vely", 250);
     self setpersifuni("velz", 250);
@@ -243,7 +197,17 @@ memory()
         self iprintln("ߝ [game] * ^+ " + self getpers("bouncecount") + "^7 bounces reloaded");
     }
 
-    self iprintlnbold("^+reloaded memory :3");
+    self loadpers("autoprone", ::do_auto_prone);
+    self loadpers("autoreload", ::do_auto_reload);
+    self loadpers("instaswaps", ::do_instaswaps);
+    self loadpers("refill_bind", ::do_refill_bind);
+    self loadpers("instashoots", ::do_instashoots);
+    self loadpers("aimbot", ::do_aimbot);
+    self loadpers("nac_bind", ::do_nac_bind, self getpers("nac_slot"));
+    self loadpers("instaswap_bind", ::do_instaswap_bind, self getpers("is_slot"));
+    // self loadpers("velocity_bind", ::do_velocity_bind, self getpers("vel_slot"));
+    self loadpers("bounce_bind", ::do_bounce_bind, self getpers("bounce_slot"));
+    self loadpers("bolt_movement_bind", ::do_bolt_movement_bind, self getpers("bolt_slot"));
 }
 
 command_handler() // handles (most) dvar commands
@@ -267,18 +231,19 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("unset", "unset position", ::unset_position);
     self thread createcommand("cp", "give care package", ::give_care_package);
     self thread createcommand("uav", "give uav", ::give_uav);
+    self thread createcommand("vish", "give vish", ::give_vish);
     self thread createcommand("nacbind", "nac bind to next weapon", ::nac_bind);
     self thread createcommand("isbind", "instaswap bind to next weapon", ::instaswap_bind);
-    self thread createcommand("vish", "give vish", ::give_vish);
-    self thread createcommand("instashoots", "toggle instashoots", ::instashoots);
-    self thread createcommand("velbind", "velocity bind", ::velocity_bind);
     self thread createcommand("bouncebind", "bounce bind", ::bounce_bind);
+    // havent tested
     self thread createcommand("boltbind", "bolt movement bind", ::bolt_movement_bind);
     self thread createcommand("bolt", "manage bolt movement", ::manage_bolt);
     self thread createcommand("boltspeed", "change bolt speed", ::bolt_speed);
-    self thread createcommand("velx", "change x velocity", ::velx);
-    self thread createcommand("vely", "change y velocity", ::vely);
-    self thread createcommand("velz", "change z velocity", ::velz);
+    // self thread createcommand("instashoots", "toggle instashoots", ::instashoots);
+    // self thread createcommand("velbind", "velocity bind", ::velocity_bind);
+    // self thread createcommand("velx", "change x velocity", ::velx);
+    // self thread createcommand("vely", "change y velocity", ::vely);
+    // self thread createcommand("velz", "change z velocity", ::velz);
 
     self iprintln("ߝ [neura] * ^+commands registered");
 }
@@ -433,7 +398,7 @@ do_velocity_bind(slot)
     for (;;)
     {
         self waittill("+actionslot " + int(slot));
-        self setvelocity(float(self getpers("velx")), float(self getpers("vely")), float(self getpers("velz")));
+        self setvelocity(self getpers("velx"), self getpers("vely"), self getpers("velz"));
     }
 }
 
@@ -2228,11 +2193,11 @@ enemy_always_watching()
                 {
                     player setplayerangles(vectortoangles(((self.origin)) - (player gettagorigin("j_head"))));
                 }
-                wait 0.05;
+                wait 1;
             }
         }
 
-        wait 0.05;
+        wait 1;
     }
 }
 
