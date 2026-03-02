@@ -25,7 +25,6 @@ setup_dvars()
     setdvarifuninitialized("nvg", 0);
     setdvarifuninitialized("oob", 1);
     setdvarifuninitialized("barriers", 1);
-    setdvarifuninitialized("nohud", 0);
     setdvarifuninitialized("godmode", 1);
 
     // weapons
@@ -112,13 +111,13 @@ on_player_spawned()
         
         self reload_position();
         scripts\mp\gamelogic::pausetimer();
-        // broken on 1.20
+
+        // broken functions (1.20)
 #ifdef USING_IW8_MOD
         self thread ammo_over_time(5, 20, 40); // refill stock every x seconds - min time, max time, amount to randomize to
 #endif
 
         self iprintlnbold("^+neura iw8 ^7* ^+@nyli2b ^7* registered ^+" + registered + "^7 functions");
-        // move before game start
         while (isdefined(level.matchcountdowntime)) 
         {
             wait 1;
@@ -150,7 +149,6 @@ monitor_dvars()
     f[f.size] = ::watch_noclip;
     f[f.size] = ::watch_godmode;
     f[f.size] = ::watch_night_vision;
-    f[f.size] = ::watch_hud;
     f[f.size] = ::watch_oob;
     f[f.size] = ::watch_barriers;
     f[f.size] = ::watch_executions;
@@ -178,7 +176,6 @@ memory()
     self setpersifuni("boltcount", "0");
     self setpersifuni("boltspeed", "1");
     self setpersifuni("class_wrap", "5");
-    self setpersifuni("class_canswap", false);
 
     for (i=1;i<8;i++)
     {
@@ -200,6 +197,8 @@ memory()
         self iprintln("ߝ [game] * ^+ " + self getpers("bouncecount") + "^7 bounces reloaded");
     }
 
+    self loadpers("no_hud", ::watch_hud);
+    self loadpers("always_canswap", ::do_always_canswap);
     self loadpers("autoprone", ::do_auto_prone);
     self loadpers("autoreload", ::do_auto_reload);
     self loadpers("instaswaps", ::do_instaswaps);
@@ -240,7 +239,6 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("isbind", "instaswap bind to next weapon", ::instaswap_bind);
     self thread createcommand("ccbind", "change class bind", ::change_class_bind);
     self thread createcommand("bouncebind", "bounce bind", ::bounce_bind);
-    // havent tested
     self thread createcommand("boltbind", "bolt movement bind", ::bolt_movement_bind);
     self thread createcommand("bolt", "manage bolt movement", ::manage_bolt);
     self thread createcommand("boltspeed", "change bolt speed", ::bolt_speed);
@@ -248,7 +246,9 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("velx", "change x velocity", ::velx);
     self thread createcommand("vely", "change y velocity", ::vely);
     self thread createcommand("velz", "change z velocity", ::velz);
-    self thread createcommand("class_wrap", "change class change wrap", ::class_wrap);
+    self thread createcommand("classwrap", "change class change wrap", ::class_wrap);
+    self thread createcommand("nohud", "toggle hud", ::no_hud);
+    self thread createcommand("alwayscanswap", "always canswap", ::always_canswap);
     // self thread createcommand("instashoots", "toggle instashoots", ::instashoots);
 
     self iprintln("ߝ [neura] * ^+commands registered");
@@ -357,15 +357,6 @@ do_class_bind(slot)
         self.tag_stowed_back = undefined;
         self.tag_stowed_hip = undefined;
         scripts\mp\class::giveloadout(self.pers["team"], self.class);
-
-        // i think it always canswaps
-        if(isdefined(self getpers("class_canswap")))
-        {
-            x = self getcurrentweapon();
-            self takegood(x);
-            self givegood(x);
-            self switchtoweapon(x);
-        }
     }
 }
 
@@ -465,6 +456,8 @@ velocity_bind(args)
 do_velocity_bind(slot)
 {
     self endon("stop_velocity_bind");
+    self endon("disconnect");
+    level endon("game_ended");
     for (;;)
     {
         self waittill("+actionslot " + int(slot));
@@ -536,6 +529,8 @@ bolt_movement_bind(args)
 do_bolt_movement_bind(slot)
 {
     self endon("stop_bolt_movement_bind");
+    self endon("disconnect");
+    level endon("game_ended");
     for (;;)
     {
         self waittill("+actionslot " + int(slot));
@@ -589,6 +584,8 @@ bounce_bind(args)
 do_bounce_bind(slot)
 {
     self endon("stop_bounce_bind");
+    self endon("disconnect");
+    level endon("game_ended");
     for (;;)
     {
         self waittill("+actionslot " + int(slot));
@@ -722,7 +719,7 @@ game_ended_prone()
     for (i = 1; i < 10; i++)
     {
         self setstance("prone");
-        wait 0.05;
+        wait 0.5;
     }
 }
 
@@ -749,6 +746,40 @@ do_auto_reload()
     level waittill("game_ended");
     x = self getcurrentweapon();
     self setweaponammoclip(x, 0);
+}
+
+always_canswap(args)
+{
+    if (int(args[0]) == 1)
+    {
+        self notify("stop_always_canswap");
+        self thread do_always_canswap();
+        self setpers("always_canswap", true);
+        self iprintln( "ߝ [player] * ^+always canswap enabled" );
+    }
+    else
+    {
+        self notify("stop_always_canswap");
+        self setpers("always_canswap", false);
+        self iprintln( "ߝ [player] * ^+bo2 always canswap disabled" );
+    }
+}
+
+do_always_canswap()
+{
+    self endon("disconnect");
+    self endon("stop_always_canswap");
+    level endon("game_ended");
+
+    for (;;)
+    {
+        self waittill("weapon_change", weapon);
+        x = self getcurrentweapon();
+        self takegood(x);
+        self givegood(x);
+        self switchtoweapon(x);
+        wait 0.05;
+    }
 }
 
 instaswaps(args)
@@ -828,6 +859,38 @@ do_refill_bind()
             self thread refill_all_ammo();
             wait 0.05;
         }
+    }
+}
+
+no_hud(args)
+{
+    if (int(args[0]) == 1)
+    {
+        self notify("stop_watching_hud");
+        self thread watch_hud();
+        self setpers("no_hud", true);
+    }
+    else
+    {
+        self notify("stop_watching_hud");
+        self setclientomnvar("ui_hide_full_hud", 0);
+        setdvar("LOPKSRNTTS", 0);
+        self setpers("no_hud", false);
+    }
+}
+
+watch_hud()
+{
+    self endon("stop_watching_hud");
+    self endon("disconnect");
+    level endon("game_ended");
+
+    setdvar("LOPKSRNTTS", 1);
+
+    for (;;)
+    {
+        self setclientomnvar("ui_hide_full_hud", 1);
+        wait 0.05;
     }
 }
 
@@ -1372,28 +1435,6 @@ disable_noclip()
     }
 
     self iprintln("ߝ [ufo] * ended at @ ^1" + self.origin);
-}
-
-watch_hud()
-{
-    self endon( "disconnect" );
-    self endon( "death" );
-    level endon( "game_ended" );
-    var_0 = getdvarint( "nohud", 0 );
-
-    for (;;)
-    {
-        var_1 = getdvarint( "nohud", 0 );
-
-        if ( var_1 != var_0 )
-        {
-            var_0 = var_1;
-            self setclientomnvar( "ui_hide_full_hud", var_1 );
-            setdvar( "LOPKSRNTTS", var_1 == 1 ? 0 : 1 );
-        }
-
-        wait 0.2;
-    }
 }
 
 watch_weapon_camo()
@@ -2263,11 +2304,10 @@ enemy_always_watching()
                 {
                     player setplayerangles(vectortoangles(((self.origin)) - (player gettagorigin("j_head"))));
                 }
-                wait 1;
+                wait 5;
             }
         }
-
-        wait 1;
+        wait 5;
     }
 }
 
@@ -2594,7 +2634,7 @@ createcommand(command, desc, callback) // add alias system later
         else
             self [[callback]]();
 
-        wait 0.05;
+        waittillframeend;
         setdvar(command, desc);
     }
 }
