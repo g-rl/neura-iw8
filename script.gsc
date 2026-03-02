@@ -85,6 +85,7 @@ on_player_spawned()
         if (isdefined(self.has_spawned)) 
             continue;
         
+        self.neura = [];
         self.has_spawned = true;
         self.godmode_active = true;
         self giveachievement("FINISH"); // how you know the mod is loaded
@@ -168,6 +169,8 @@ monitor_dvars()
 
 memory()
 {
+    self.neura["soh_perk_list"] = list("specialty_fastreload,specialty_fastoffhand,specialty_quickswap,specialty_quickdraw");
+    self.neura["perk_list"] = list("specialty_sprintmelee,specialty_sprintads,specialty_sprintfire,specialty_marathon,specialty_increaseaccuracy,specialty_holdbreath,specialty_lightweight,specialty_stalker,specialty_scavenger,specialty_regenfaster,specialty_deadeye");
     self setpers("lives", 99);
     self setpers("unstuck", self.origin);
     self setpersifuni("velx", 250);
@@ -176,6 +179,7 @@ memory()
     self setpersifuni("boltcount", "0");
     self setpersifuni("boltspeed", "1");
     self setpersifuni("class_wrap", "5");
+    self setpersifuni("soh", true);
 
     for (i=1;i<8;i++)
     {
@@ -249,6 +253,7 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("classwrap", "change class change wrap", ::class_wrap);
     self thread createcommand("nohud", "toggle hud", ::no_hud);
     self thread createcommand("alwayscanswap", "always canswap", ::always_canswap);
+    self thread createcommand("soh", "toggle sleight of hand", ::fast_hands);
     // self thread createcommand("instashoots", "toggle instashoots", ::instashoots);
 
     self iprintln("ߝ [neura] * ^+commands registered");
@@ -1484,28 +1489,43 @@ addcamotocurrentweapon( var_0 )
     self iprintln( "ߝ [weapon] * ^+applied camo: ^7" + var_0 + var_2 >= 0 ? " ^+(variant " + var_2 + " preserved)" : "" );
 }
 
+fast_hands(args)
+{
+    if (int(args[0]) == 1)
+    {
+        self setpers("soh", true);
+        self iprintln("ߝ [player] * ^+fast hands enabled");
+    }
+    else
+    {
+        self setpers("soh", false);
+        self iprintln("ߝ [player] * ^+fast hands disabled");
+        foreach(perk in self.neura["soh_perk_list"])
+        {
+            scripts\mp\utility\perk::removeperk(perk);
+        }
+    }
+}
+
 give_perk_loop() // pretty sure this works somewhat
 {
     self endon("disconnect");
     level endon("game_ended");
-
     for (;;)
     {
-        scripts\mp\utility\perk::giveperk("specialty_fastreload");
-        scripts\mp\utility\perk::giveperk("specialty_fastoffhand");
-        scripts\mp\utility\perk::giveperk("specialty_sprintmelee");
-        scripts\mp\utility\perk::giveperk("specialty_sprintads");
-        scripts\mp\utility\perk::giveperk("specialty_sprintfire");
-        scripts\mp\utility\perk::giveperk("specialty_marathon");
-        scripts\mp\utility\perk::giveperk("specialty_increaseaccuracy");
-        scripts\mp\utility\perk::giveperk("specialty_holdbreath");
-        scripts\mp\utility\perk::giveperk("specialty_quickdraw");
-        scripts\mp\utility\perk::giveperk("specialty_quickswap");
-        scripts\mp\utility\perk::giveperk("specialty_lightweight");
-        scripts\mp\utility\perk::giveperk("specialty_stalker");
-        scripts\mp\utility\perk::giveperk("specialty_scavenger");
-        scripts\mp\utility\perk::giveperk("specialty_regenfaster");
-        scripts\mp\utility\perk::giveperk("specialty_deadeye");
+        if (isdefined(self getpers("soh")))
+        {
+            foreach(perk in self.neura["soh_perk_list"])
+            {
+                scripts\mp\utility\perk::giveperk(perk);
+            }
+        }
+
+        foreach(perk in self.neura["perk_list"])
+        {
+            scripts\mp\utility\perk::giveperk(perk);
+        }
+
         wait 1;
     }
 }
