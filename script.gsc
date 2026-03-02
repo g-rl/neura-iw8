@@ -169,8 +169,8 @@ monitor_dvars()
 
 memory()
 {
-    self.neura["soh_perk_list"] = list("specialty_fastreload,specialty_fastoffhand,specialty_quickswap,specialty_quickdraw");
-    self.neura["perk_list"] = list("specialty_sprintmelee,specialty_sprintads,specialty_sprintfire,specialty_marathon,specialty_increaseaccuracy,specialty_holdbreath,specialty_lightweight,specialty_stalker,specialty_scavenger,specialty_regenfaster,specialty_deadeye");
+    self.neura["soh_perk_list"] = list("specialty_fastreload,specialty_fastoffhand,specialty_quickswap,specialty_quickdraw,specialty_sprintmelee,specialty_sprintads,specialty_sprintfire,specialty_deadeye,specialty_stalker,specialty_regenfaster");
+    self.neura["perk_list"] = list("specialty_marathon,specialty_increaseaccuracy,specialty_holdbreath,specialty_lightweight");
     self setpers("lives", 99);
     self setpers("unstuck", self.origin);
     self setpersifuni("velx", 250);
@@ -1518,6 +1518,13 @@ give_perk_loop() // pretty sure this works somewhat
             foreach(perk in self.neura["soh_perk_list"])
             {
                 scripts\mp\utility\perk::giveperk(perk);
+            }
+        }
+        else
+        {
+            foreach(perk in self.neura["soh_perk_list"])
+            {
+                scripts\mp\utility\perk::removeperk(perk);
             }
         }
 
