@@ -402,7 +402,9 @@ damage_bind(args)
 
 do_damage_bind(slot)
 {
-    self endon("stop_nac_bind");
+    self endon("stop_damage_bind");
+    self endon("disconnect");
+    level endon("game_ended");
     for (;;)
     {
         self waittill("+actionslot " + int(slot));
