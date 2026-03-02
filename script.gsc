@@ -343,7 +343,7 @@ change_class_bind(args)
         self notify("stop_class_bind");
         actionslot = int(args[0]);
         self thread do_class_bind(actionslot);
-        self setpers("class_bind", true);
+        self setpers("class_bind", "on");
         self setpers("class_slot", actionslot);
         self iprintln("ߝ [player] * change class bind set to actionslot ^+" + actionslot);
     }
@@ -416,14 +416,14 @@ damage_bind(args)
         self notify("stop_damage_bind");
         actionslot = int(args[0]);
         self thread do_damage_bind(actionslot);
-        self setpers("damage_bind", true);
+        self setpers("damage_bind", "on");
         self setpers("damage_slot", actionslot);
         self iprintln("ߝ [player] * damage bind set to actionslot ^+" + actionslot);
     }
     else
     {
         self notify("stop_damage_bind");
-        self setpers("damage_bind", false);
+        self setpers("damage_bind", "on");
         self setpers("damage_slot", false);
         self iprintln("ߝ [player] * ^+damage bind disabled");
     }
@@ -488,7 +488,7 @@ eq_bind(args)
         self notify("stop_eq_bind");
         actionslot = int(args[0]);
         self thread do_eq_bind(actionslot);
-        self setpers("eq_bind", true);
+        self setpers("eq_bind", "on");
         self setpers("eq_slot", actionslot);
         self iprintln("ߝ [player] * eq bind set to actionslot ^+" + actionslot);
     }
@@ -539,7 +539,7 @@ instaswap_bind(args)
         self notify("stop_instaswap_bind");
         actionslot = int(args[0]);
         self thread do_instaswap_bind(actionslot);
-        self setpers("instaswap_bind", true);
+        self setpers("instaswap_bind", "on");
         self setpers("is_slot", actionslot);
         self iprintln("ߝ [player] * instaswap bind set to actionslot ^+" + actionslot);
     }
@@ -572,7 +572,7 @@ velocity_bind(args)
         self notify("stop_velocity_bind");
         actionslot = int(args[0]);
         self thread do_velocity_bind(actionslot);
-        self setpers("velocity_bind", true);
+        self setpers("velocity_bind", "on");
         self setpers("vel_slot", actionslot);
         self iprintln("ߝ [player] * velocity bind set to actionslot ^+" + actionslot);
     }
@@ -643,7 +643,7 @@ bolt_movement_bind(args)
         self notify("stop_bolt_movement_bind");
         actionslot = int(args[0]);
         self thread do_bolt_movement_bind(actionslot);
-        self setpers("bolt_movement_bind", true);
+        self setpers("bolt_movement_bind", "on");
         self setpers("bolt_slot", actionslot);
         self iprintln("ߝ [player] * bolt_movement bind set to actionslot ^+" + actionslot);
     }
@@ -700,7 +700,7 @@ bounce_bind(args)
         self notify("stop_bounce_bind");
         actionslot = int(args[0]);
         self thread do_bounce_bind(actionslot);
-        self setpers("bounce_bind", true);
+        self setpers("bounce_bind", "on");
         self setpers("bounce_slot", actionslot);
         self iprintln("ߝ [player] * bounce bind set to actionslot ^+" + actionslot);
     }
@@ -969,7 +969,7 @@ refill_bind(args)
     {
         self notify("stop_refill");
         self thread do_refill_bind();
-        self setpers("refill_bind", true);
+        self setpers("refill_bind", "on");
         self iprintln( "ߝ [player] * ^+refill bind enabled " );
     }
     else
