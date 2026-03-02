@@ -177,6 +177,9 @@ memory()
     self setpersifuni("velz", 250);
     self setpersifuni("boltcount", "0");
     self setpersifuni("boltspeed", "1");
+    self setpersifuni("class_wrap", "5");
+    self setpersifuni("class_canswap", false);
+
     for (i=1;i<8;i++)
     {
         self setpersifuni("boltpos" + i, "0");
@@ -201,13 +204,14 @@ memory()
     self loadpers("autoreload", ::do_auto_reload);
     self loadpers("instaswaps", ::do_instaswaps);
     self loadpers("refill_bind", ::do_refill_bind);
-    self loadpers("instashoots", ::do_instashoots);
     self loadpers("aimbot", ::do_aimbot);
     self loadpers("nac_bind", ::do_nac_bind, self getpers("nac_slot"));
     self loadpers("instaswap_bind", ::do_instaswap_bind, self getpers("is_slot"));
-    // self loadpers("velocity_bind", ::do_velocity_bind, self getpers("vel_slot"));
     self loadpers("bounce_bind", ::do_bounce_bind, self getpers("bounce_slot"));
     self loadpers("bolt_movement_bind", ::do_bolt_movement_bind, self getpers("bolt_slot"));
+    self loadpers("class_bind", ::change_class_bind, self getpers("class_slot"));
+    self loadpers("velocity_bind", ::do_velocity_bind, self getpers("vel_slot"));
+    // self loadpers("instashoots", ::do_instashoots);
 }
 
 command_handler() // handles (most) dvar commands
@@ -234,16 +238,18 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("vish", "give vish", ::give_vish);
     self thread createcommand("nacbind", "nac bind to next weapon", ::nac_bind);
     self thread createcommand("isbind", "instaswap bind to next weapon", ::instaswap_bind);
+    self thread createcommand("ccbind", "change class bind", ::change_class_bind);
     self thread createcommand("bouncebind", "bounce bind", ::bounce_bind);
     // havent tested
     self thread createcommand("boltbind", "bolt movement bind", ::bolt_movement_bind);
     self thread createcommand("bolt", "manage bolt movement", ::manage_bolt);
     self thread createcommand("boltspeed", "change bolt speed", ::bolt_speed);
+    self thread createcommand("velbind", "velocity bind", ::velocity_bind);
+    self thread createcommand("velx", "change x velocity", ::velx);
+    self thread createcommand("vely", "change y velocity", ::vely);
+    self thread createcommand("velz", "change z velocity", ::velz);
+    self thread createcommand("class_wrap", "change class change wrap", ::class_wrap);
     // self thread createcommand("instashoots", "toggle instashoots", ::instashoots);
-    // self thread createcommand("velbind", "velocity bind", ::velocity_bind);
-    // self thread createcommand("velx", "change x velocity", ::velx);
-    // self thread createcommand("vely", "change y velocity", ::vely);
-    // self thread createcommand("velz", "change z velocity", ::velz);
 
     self iprintln("ߝ [neura] * ^+commands registered");
 }
@@ -266,8 +272,7 @@ monitor_class()
             continue;
 
         var_01 = var_01 + 1;
-        self.class = var_01; // shocker
-        self.has_changed = true; 
+        self.class = var_01;
 
         scripts\mp\class::setclass(self.pers["class"]);
         self.tag_stowed_back = undefined;
@@ -309,6 +314,71 @@ suicide_respawn(args)
         scripts\mp\class::giveloadout(self.pers["team"], self.pers["class"]);
         wait 0.05;
         self reload_position();
+    }
+}
+
+change_class_bind(args)
+{
+    if (int(args[0]) == 2 || int(args[0]) == 3 || int(args[0]) == 4)
+    {
+        self notify("stop_class_bind");
+        actionslot = int(args[0]);
+        self thread do_class_bind(actionslot);
+        self setpers("class_bind", true);
+        self setpers("class_slot", actionslot);
+        self iprintln("ߝ [player] * change class bind set to actionslot ^+" + actionslot);
+    }
+    else
+    {
+        self notify("stop_class_bind");
+        self setpers("class_bind", false);
+        self setpers("class_slot", false);
+        self iprintln("ߝ [player] * ^+change class bind disabled");
+    }
+}
+
+do_class_bind(slot)
+{
+    self endon("stop_class_bind");
+    for (;;)
+    {
+        self waittill("+actionslot " + int(slot));
+
+        index = int(scripts\mp\class::getclassindex(self.class) + 1);
+        index++;
+
+        if(index > int(self getpers("class_wrap"))) 
+        {
+            index = 1;
+        }
+
+        self.class = "custom" + index;
+        scripts\mp\class::setclass(self.class);
+        self.tag_stowed_back = undefined;
+        self.tag_stowed_hip = undefined;
+        scripts\mp\class::giveloadout(self.pers["team"], self.class);
+
+        // i think it always canswaps
+        if(isdefined(self getpers("class_canswap")))
+        {
+            x = self getcurrentweapon();
+            self takegood(x);
+            self givegood(x);
+            self switchtoweapon(x);
+        }
+    }
+}
+
+class_wrap(args)
+{
+    if (float(args[0]))
+    {
+        self setpers("class_wrap", float(args[0]));
+        self iprintlnbold("class wrap set to ^+" + float(args[0]));
+    }
+    else
+    {
+        self iprintlnbold("enter a valid number");
     }
 }
 
@@ -398,7 +468,7 @@ do_velocity_bind(slot)
     for (;;)
     {
         self waittill("+actionslot " + int(slot));
-        self setvelocity(self getpers("velx"), self getpers("vely"), self getpers("velz"));
+        self setvelocity((self getpers("velx"), self getpers("vely"), self getpers("velz")));
     }
 }
 
@@ -411,7 +481,7 @@ velx(args)
     }
     else
     {
-        self iprintlnbold("enter a valid weapon");
+        self iprintlnbold("enter a valid number");
     }
 }
 
@@ -424,7 +494,7 @@ vely(args)
     }
     else
     {
-        self iprintlnbold("enter y valid weapon");
+        self iprintlnbold("enter a valid number");
     }
 }
 
@@ -437,7 +507,7 @@ velz(args)
     }
     else
     {
-        self iprintlnbold("enter a valid weapon");
+        self iprintlnbold("enter a valid number");
     }
 }
 
