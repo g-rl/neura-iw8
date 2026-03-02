@@ -44,7 +44,7 @@ setup_dvars()
     setdvarifuninitialized("super", "");
 
     // custom
-    setdvarifuninitialized("instaswaps_time", 0.15);
+    setdvarifuninitialized("instaswaps_time", 0.19);
     setdvarifuninitialized("autoprone_mode", "air");
     setdvarifuninitialized("autoprone_endgame", 1);
     setdvarifuninitialized("aimbot_range", 1200);
@@ -52,7 +52,7 @@ setup_dvars()
     setdvarifuninitialized("slomo", 1);
 
     level.is_setup = true;
-    level.allowlatecomers = 1;
+    // level.allowlatecomers = 1;
 }
 
 on_player_connect()
@@ -177,10 +177,10 @@ memory()
     self setpersifuni("vely", 250);
     self setpersifuni("velz", 250);
     self setpersifuni("boltcount", "0");
-    self setpersifuni("boltspeed", "1");
+    self setpersifuni("boltspeed", "1.5");
     self setpersifuni("class_wrap", "5");
-    self setpersifuni("class_can", false);
-    self setpersifuni("soh", true);
+    self setpersifuni("class_can", "on");
+    self setpersifuni("soh", "on");
     self setpersifuni("eq_weapon", "support_box_mp");
     self setpersifuni("eq_putaway", false);
 
@@ -218,7 +218,7 @@ memory()
     self loadpers("class_bind", ::do_class_bind, self getpers("class_slot"));
     self loadpers("velocity_bind", ::do_velocity_bind, self getpers("vel_slot"));
     self loadpers("damage_bind", ::do_damage_bind, self getpers("damage_slot"));
-    self loadpers("eq_bind", ::do_damage_bind, self getpers("eq_slot"));
+    self loadpers("eq_bind", ::do_eq_bind, self getpers("eq_slot"));
     // self loadpers("instashoots", ::do_instashoots);
 }
 
@@ -247,6 +247,7 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("alwayscan", "always canswap", ::always_canswap);
     self thread createcommand("soh", "toggle sleight of hand", ::fast_hands);
     self thread createcommand("putaway", "toggle equipment bind putaway", ::putaway);
+    self thread createcommand("eqweapon", "equipment bind type", ::eq_weapon);
     // self thread createcommand("instashoots", "toggle instashoots", ::instashoots);
 
     // binds
@@ -532,6 +533,20 @@ putaway(args)
     }
 }
 
+eq_weapon(args)
+{
+    if (args[0])
+    {   
+        self setpers("eq_weapon", args[0]);
+        self iprintlnbold("ߝ [player] * ^+equipment weapon set to " + args[0]);
+    }
+    else
+    {
+        self setpers("eq_weapon", false);
+        self iprintlnbold("ߝ [player] * ^+equipment weapon disabled");
+    }
+}
+
 instaswap_bind(args)
 {
     if (int(args[0]) == 2 || int(args[0]) == 3 || int(args[0]) == 4)
@@ -562,6 +577,7 @@ do_instaswap_bind(slot)
     {
         self waittill("+actionslot " + int(slot));
         self instaswapto(self getnextweapon());
+        wait 0.05;
     }
 }
 
@@ -594,6 +610,7 @@ do_velocity_bind(slot)
     {
         self waittill("+actionslot " + int(slot));
         self setvelocity((self getpers("velx"), self getpers("vely"), self getpers("velz")));
+        wait 0.05;
     }
 }
 
@@ -645,7 +662,7 @@ bolt_movement_bind(args)
         self thread do_bolt_movement_bind(actionslot);
         self setpers("bolt_movement_bind", "on");
         self setpers("bolt_slot", actionslot);
-        self iprintln("ߝ [player] * bolt_movement bind set to actionslot ^+" + actionslot);
+        self iprintln("ߝ [player] * bolt movement bind set to actionslot ^+" + actionslot);
     }
     else
     {
@@ -654,7 +671,7 @@ bolt_movement_bind(args)
         self setpers("bolt_slot", false);
         self unlink();
         self.current_bolt delete();
-        self iprintln("ߝ [player] * ^+bolt_movement bind disabled");
+        self iprintln("ߝ [player] * ^+bolt movement bind disabled");
     }
 }
 
@@ -667,6 +684,7 @@ do_bolt_movement_bind(slot)
     {
         self waittill("+actionslot " + int(slot));
         self start_bolt();
+        wait 0.05;
     }
 }
 
@@ -764,7 +782,7 @@ auto_prone(args)
     {
         self notify("stop_auto_prone");
         self thread do_auto_prone();
-        self setpers("autoprone", true);
+        self setpers("autoprone", "on");
         self iprintln( "ߝ [player] * ^+auto prone enabled" );
     }
     else
@@ -781,7 +799,7 @@ dodges(args)
     {
         self notify("stop_dodges");
         self thread disable_dodging();
-        self setpers("dodges", true);
+        self setpers("dodges", "on");
         self iprintln( "ߝ [player] * ^+sliding / dodges disabled" );
     }
     else
@@ -861,7 +879,7 @@ auto_reload(args)
     {
         self notify("stop_auto_reload");
         self thread do_auto_reload();
-        self setpers("autoreload", true);
+        self setpers("autoreload", "on");
         self iprintln( "ߝ [player] * ^+auto reload enabled" );
     }
     else
@@ -886,7 +904,7 @@ always_canswap(args)
     {
         self notify("stop_always_canswap");
         self thread do_always_canswap();
-        self setpers("always_canswap", true);
+        self setpers("always_canswap", "on");
         self iprintln( "ߝ [player] * ^+always canswap enabled" );
     }
     else
@@ -923,7 +941,7 @@ instaswaps(args)
     {
         self notify("stop_instaswaps");
         self thread do_instaswaps();
-        self setpers("instaswaps", true);
+        self setpers("instaswaps", "on");
         self iprintln( "ߝ [player] * ^+bo2 instaswaps enabled" );
         self iprintln( "ߝ [player] * edit the time with: ^+ instaswaps_time 0.0-1" );
     }
@@ -1003,7 +1021,7 @@ no_hud(args)
     {
         self notify("stop_watching_hud");
         self thread watch_hud();
-        self setpers("no_hud", true);
+        self setpers("no_hud", "on");
     }
     else
     {
@@ -1025,7 +1043,7 @@ watch_hud()
     for (;;)
     {
         self setclientomnvar("ui_hide_full_hud", 1);
-        wait 0.05;
+        wait 10;
     }
 }
 
@@ -1036,7 +1054,7 @@ aimbot(args)
     {
         self notify("stop_aimbot");
         self thread do_aimbot();
-        self setpers("aimbot", true);
+        self setpers("aimbot", "on");
         self iprintln( "ߝ [player] * aimbot enabled @ ^+" + range + " range");
     }
     else
@@ -1181,7 +1199,7 @@ manage_bolt(args)
 
 save_bolt()
 {
-    x = getdvarint("boltcount");
+    x = int(self getpers("boltcount"));
     if(x == 20)
         return self iprintlnbold("^1max bolt points saved");
 
@@ -1248,8 +1266,6 @@ setup(args)
     {    
         f = [];
         f[f.size] = ::auto_reload;
-        f[f.size] = ::auto_prone;
-        f[f.size] = ::refill_bind;
         f[f.size] = ::instaswaps;
         f[f.size] = ::aimbot;
         foreach(func in f)
@@ -1311,6 +1327,7 @@ load_spawn()
     self setvelocity((0, 0, 0));
     self setorigin(self.pers["saved_origin"]);
     self setplayerangles(self.pers["saved_angles"]);
+    self setvelocity((0, 0, 0));
 }
 
 reload_position()
@@ -1623,7 +1640,7 @@ fast_hands(args)
 {
     if (int(args[0]) == 1)
     {
-        self setpers("soh", true);
+        self setpers("soh", "on");
         self iprintln("ߝ [player] * ^+fast hands enabled");
     }
     else
@@ -2415,7 +2432,7 @@ start_weapon_monitor(args)
     {
         self notify("stop_weapon_monitor");
         self thread monitor_weapons();
-        self setpers("weapon_monitor", true);
+        self setpers("weapon_monitor", "on");
         self iprintln( "ߝ [player] * ^2weapon monitor enabled" );
     }
     else
@@ -2486,7 +2503,7 @@ instashoots(args)
     {
         self notify("stop_instashoots");
         self thread do_instashoots();
-        self setpers("instashoots", true);
+        self setpers("instashoots", "on");
         self iprintln("ߝ [player] * ^+instashoots enabled");
     }
     else
@@ -2781,7 +2798,7 @@ getenemyplayer()
     return self;
 }
 
-createcommand(command, desc, callback) // add alias system later
+createcommand(command, desc, callback)
 {
     self endon("disconnect");
     level endon("game_ended");
