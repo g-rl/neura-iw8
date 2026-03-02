@@ -180,6 +180,8 @@ memory()
     self setpersifuni("boltspeed", "1");
     self setpersifuni("class_wrap", "5");
     self setpersifuni("soh", true);
+    self setpersifuni("eq_weapon", "support_box_mp");
+    self setpersifuni("eq_putaway", false);
 
     for (i=1;i<8;i++)
     {
@@ -215,6 +217,7 @@ memory()
     self loadpers("class_bind", ::change_class_bind, self getpers("class_slot"));
     self loadpers("velocity_bind", ::do_velocity_bind, self getpers("vel_slot"));
     self loadpers("damage_bind", ::do_damage_bind, self getpers("damage_slot"));
+    self loadpers("eq_bind", ::do_damage_bind, self getpers("eq_slot"));
     // self loadpers("instashoots", ::do_instashoots);
 }
 
@@ -232,7 +235,6 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("aimbot", "aimbot", ::aimbot);
     self thread createcommand("unstuck", "unstuck", ::unstuck);
     self thread createcommand("setup", "easy setup", ::setup);
-    // self thread createcommand("monitor", "monitor weapons", ::start_weapon_monitor);
     self thread createcommand("sliding", "toggle sliding (dodging)", ::dodges);
     self thread createcommand("slomo", "set timescale", ::change_timescale);
     self thread createcommand("die", "respawn yourself", ::suicide_respawn);
@@ -240,23 +242,29 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("cp", "give care package", ::give_care_package);
     self thread createcommand("uav", "give uav", ::give_uav);
     self thread createcommand("vish", "give vish", ::give_vish);
+    self thread createcommand("nohud", "toggle hud", ::no_hud);
+    self thread createcommand("alwayscanswap", "always canswap", ::always_canswap);
+    self thread createcommand("soh", "toggle sleight of hand", ::fast_hands);
+    self thread createcommand("putaway", "toggle equipment bind putaway", ::putaway);
+    // self thread createcommand("instashoots", "toggle instashoots", ::instashoots);
+
+    // binds
     self thread createcommand("nacbind", "nac bind to next weapon", ::nac_bind);
     self thread createcommand("isbind", "instaswap bind to next weapon", ::instaswap_bind);
     self thread createcommand("ccbind", "change class bind", ::change_class_bind);
     self thread createcommand("bouncebind", "bounce bind", ::bounce_bind);
     self thread createcommand("boltbind", "bolt movement bind", ::bolt_movement_bind);
-    self thread createcommand("bolt", "manage bolt movement", ::manage_bolt);
-    self thread createcommand("boltspeed", "change bolt speed", ::bolt_speed);
     self thread createcommand("velbind", "velocity bind", ::velocity_bind);
     self thread createcommand("damagebind", "damage bind", ::damage_bind);
+    self thread createcommand("eqbind", "equipment bind", ::eq_bind);
+
+    // values
+    self thread createcommand("bolt", "manage bolt movement", ::manage_bolt);
+    self thread createcommand("boltspeed", "change bolt speed", ::bolt_speed);
     self thread createcommand("velx", "change x velocity", ::velx);
     self thread createcommand("vely", "change y velocity", ::vely);
     self thread createcommand("velz", "change z velocity", ::velz);
     self thread createcommand("classwrap", "change class change wrap", ::class_wrap);
-    self thread createcommand("nohud", "toggle hud", ::no_hud);
-    self thread createcommand("alwayscanswap", "always canswap", ::always_canswap);
-    self thread createcommand("soh", "toggle sleight of hand", ::fast_hands);
-    // self thread createcommand("instashoots", "toggle instashoots", ::instashoots);
 
     self iprintln("ߝ [neura] * ^+commands registered");
 }
@@ -452,6 +460,57 @@ do_nac_bind(slot)
     }
 }
 
+eq_bind(args)
+{
+    if (int(args[0]) == 2 || int(args[0]) == 3 || int(args[0]) == 4)
+    {
+        self notify("stop_eq_bind");
+        actionslot = int(args[0]);
+        self thread do_eq_bind(actionslot);
+        self setpers("eq_bind", true);
+        self setpers("eq_slot", actionslot);
+        self iprintln("ߝ [player] * eq bind set to actionslot ^+" + actionslot);
+    }
+    else
+    {
+        self notify("stop_eq_bind");
+        self setpers("eq_bind", false);
+        self setpers("eq_slot", false);
+        self iprintln("ߝ [player] * ^+eq bind disabled");
+    }
+}
+
+do_eq_bind(slot)
+{
+    self endon("stop_eq_bind");
+    self endon("disconnect");
+    level endon("game_ended");
+    for (;;)
+    {
+        self waittill("+actionslot " + int(slot));
+        x = self getcurrentweapon();
+        self nacto(self getpers("eq_weapon"));
+        if (isdefined(self getpers("eq_putaway")))
+        {
+            self switchtoweapon(x);
+        }
+    }
+}
+
+putaway(args)
+{
+    if (int(args[0]) == 1)
+    {
+        self setpers("eq_putaway", true);
+        self iprintlnbold("ߝ [player] * ^+equipment putaway enabled");
+    }
+    else
+    {
+        self setpers("eq_putaway", false);
+        self iprintlnbold("ߝ [player] * ^+equipment putaway disabled");
+    }
+}
+
 instaswap_bind(args)
 {
     if (int(args[0]) == 2 || int(args[0]) == 3 || int(args[0]) == 4)
@@ -475,6 +534,9 @@ instaswap_bind(args)
 do_instaswap_bind(slot)
 {
     self endon("stop_instaswap_bind");
+    self endon("disconnect");
+    level endon("game_ended");
+
     for (;;)
     {
         self waittill("+actionslot " + int(slot));
