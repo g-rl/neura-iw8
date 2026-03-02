@@ -215,7 +215,7 @@ memory()
     self loadpers("instaswap_bind", ::do_instaswap_bind, self getpers("is_slot"));
     self loadpers("bounce_bind", ::do_bounce_bind, self getpers("bounce_slot"));
     self loadpers("bolt_movement_bind", ::do_bolt_movement_bind, self getpers("bolt_slot"));
-    self loadpers("class_bind", ::change_class_bind, self getpers("class_slot"));
+    self loadpers("class_bind", ::do_class_bind, self getpers("class_slot"));
     self loadpers("velocity_bind", ::do_velocity_bind, self getpers("vel_slot"));
     self loadpers("damage_bind", ::do_damage_bind, self getpers("damage_slot"));
     self loadpers("eq_bind", ::do_damage_bind, self getpers("eq_slot"));
@@ -252,7 +252,7 @@ command_handler() // handles (most) dvar commands
     // binds
     self thread createcommand("nacbind", "nac bind to next weapon", ::nac_bind);
     self thread createcommand("isbind", "instaswap bind to next weapon", ::instaswap_bind);
-    self thread createcommand("ccbind", "change class bind", ::do_class_bind);
+    self thread createcommand("ccbind", "change class bind", ::change_class_bind);
     self thread createcommand("bouncebind", "bounce bind", ::bounce_bind);
     self thread createcommand("boltbind", "bolt movement bind", ::bolt_movement_bind);
     self thread createcommand("velbind", "velocity bind", ::velocity_bind);
