@@ -2700,7 +2700,7 @@ setpersifuni(key, value)
 
 haspers(pers)
 {
-    return isdefined(self.pers[pers]) && self.pers[pers];
+    return self getpers(pers) == "on";
 }
 
 perstovector(pers)
