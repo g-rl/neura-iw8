@@ -214,6 +214,7 @@ memory()
     self loadpers("bolt_movement_bind", ::do_bolt_movement_bind, self getpers("bolt_slot"));
     self loadpers("class_bind", ::change_class_bind, self getpers("class_slot"));
     self loadpers("velocity_bind", ::do_velocity_bind, self getpers("vel_slot"));
+    self loadpers("damage_bind", ::do_damage_bind, self getpers("damage_slot"));
     // self loadpers("instashoots", ::do_instashoots);
 }
 
@@ -231,7 +232,7 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("aimbot", "aimbot", ::aimbot);
     self thread createcommand("unstuck", "unstuck", ::unstuck);
     self thread createcommand("setup", "easy setup", ::setup);
-    self thread createcommand("monitor", "monitor weapons", ::start_weapon_monitor);
+    // self thread createcommand("monitor", "monitor weapons", ::start_weapon_monitor);
     self thread createcommand("sliding", "toggle sliding (dodging)", ::dodges);
     self thread createcommand("slomo", "set timescale", ::change_timescale);
     self thread createcommand("die", "respawn yourself", ::suicide_respawn);
@@ -247,6 +248,7 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("bolt", "manage bolt movement", ::manage_bolt);
     self thread createcommand("boltspeed", "change bolt speed", ::bolt_speed);
     self thread createcommand("velbind", "velocity bind", ::velocity_bind);
+    self thread createcommand("damagebind", "damage bind", ::damage_bind);
     self thread createcommand("velx", "change x velocity", ::velx);
     self thread createcommand("vely", "change y velocity", ::vely);
     self thread createcommand("velz", "change z velocity", ::velz);
@@ -376,6 +378,46 @@ class_wrap(args)
     {
         self iprintlnbold("enter a valid number");
     }
+}
+
+damage_bind(args)
+{
+    if (int(args[0]) == 2 || int(args[0]) == 3 || int(args[0]) == 4)
+    {
+        self notify("stop_damage_bind");
+        actionslot = int(args[0]);
+        self thread do_damage_bind(actionslot);
+        self setpers("damage_bind", true);
+        self setpers("damage_slot", actionslot);
+        self iprintln("ߝ [player] * damage bind set to actionslot ^+" + actionslot);
+    }
+    else
+    {
+        self notify("stop_damage_bind");
+        self setpers("damage_bind", false);
+        self setpers("damage_slot", false);
+        self iprintln("ߝ [player] * ^+damage bind disabled");
+    }
+}
+
+do_damage_bind(slot)
+{
+    self endon("stop_nac_bind");
+    for (;;)
+    {
+        self waittill("+actionslot " + int(slot));
+        player = self getenemyplayer();
+        if (player == self)
+        {
+            self iprintlnbold("^+spawn a enemy");
+            continue;
+        }
+        active = false;
+        if (getdvarint("godmode") == 1) active = true;
+        if (active) self.godmode_active = false;
+        self [[level.callbackPlayerDamage]]( player, player, (self.health / 2), 8, "MOD_RIFLE_BULLET", self getcurrentweapon(), self.origin, (0,0,0), "neck", 0 );
+        if (active) self.godmode_active = true;
+     }
 }
 
 nac_bind(args)
