@@ -179,6 +179,7 @@ memory()
     self setpersifuni("boltcount", "0");
     self setpersifuni("boltspeed", "1");
     self setpersifuni("class_wrap", "5");
+    self setpersifuni("class_can", false);
     self setpersifuni("soh", true);
     self setpersifuni("eq_weapon", "support_box_mp");
     self setpersifuni("eq_putaway", false);
@@ -251,7 +252,7 @@ command_handler() // handles (most) dvar commands
     // binds
     self thread createcommand("nacbind", "nac bind to next weapon", ::nac_bind);
     self thread createcommand("isbind", "instaswap bind to next weapon", ::instaswap_bind);
-    self thread createcommand("ccbind", "change class bind", ::change_class_bind);
+    self thread createcommand("ccbind", "change class bind", ::do_class_bind);
     self thread createcommand("bouncebind", "bounce bind", ::bounce_bind);
     self thread createcommand("boltbind", "bolt movement bind", ::bolt_movement_bind);
     self thread createcommand("velbind", "velocity bind", ::velocity_bind);
@@ -265,6 +266,7 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("vely", "change y velocity", ::vely);
     self thread createcommand("velz", "change z velocity", ::velz);
     self thread createcommand("classwrap", "change class change wrap", ::class_wrap);
+    self thread createcommand("classcan", "canswap on change class", ::class_can);
 
     self iprintln("ߝ [neura] * ^+commands registered");
 }
@@ -293,6 +295,8 @@ monitor_class()
         self.tag_stowed_back = undefined;
         self.tag_stowed_hip = undefined;
         scripts\mp\class::giveloadout(self.pers["team"], self.pers["class"]);
+
+        
     }
 }
 
@@ -372,6 +376,11 @@ do_class_bind(slot)
         self.tag_stowed_back = undefined;
         self.tag_stowed_hip = undefined;
         scripts\mp\class::giveloadout(self.pers["team"], self.class);
+
+        if (self getpers("class_can") == "on")
+        {
+            self alwayscan(self getcurrentweapon());
+        }
     }
 }
 
@@ -385,6 +394,18 @@ class_wrap(args)
     else
     {
         self iprintlnbold("enter a valid number");
+    }
+}
+
+class_can(args)
+{
+    if (int(args[0]) == 1)
+    {
+        self setpers("class_can", "on");
+    }
+    else
+    {
+        self setpers("class_can", false);
     }
 }
 
@@ -437,7 +458,7 @@ nac_bind(args)
         self notify("stop_nac_bind");
         actionslot = int(args[0]);
         self thread do_nac_bind(actionslot);
-        self setpers("nac_bind", true);
+        self setpers("nac_bind", "on");
         self setpers("nac_slot", actionslot);
         self iprintln("ߝ [player] * nac bind set to actionslot ^+" + actionslot);
     }
@@ -490,7 +511,7 @@ do_eq_bind(slot)
         self waittill("+actionslot " + int(slot));
         x = self getcurrentweapon();
         self nacto(self getpers("eq_weapon"));
-        if (isdefined(self getpers("eq_putaway")))
+        if (self getpers("eq_putaway") == "on")
         {
             self switchtoweapon(x);
         }
@@ -501,7 +522,7 @@ putaway(args)
 {
     if (int(args[0]) == 1)
     {
-        self setpers("eq_putaway", true);
+        self setpers("eq_putaway", "on");
         self iprintlnbold("ߝ [player] * ^+equipment putaway enabled");
     }
     else
@@ -885,10 +906,12 @@ do_always_canswap()
     for (;;)
     {
         self waittill("weapon_change", weapon);
-        if (isdefined(self getpers("nac_bind")))
+
+        if (self getpers("nac_bind") == "on")
         {
             wait 0.05;
         }
+
         self alwayscan(weapon);
         wait 0.05;
     }
