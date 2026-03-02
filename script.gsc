@@ -243,7 +243,7 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("uav", "give uav", ::give_uav);
     self thread createcommand("vish", "give vish", ::give_vish);
     self thread createcommand("nohud", "toggle hud", ::no_hud);
-    self thread createcommand("alwayscanswap", "always canswap", ::always_canswap);
+    self thread createcommand("alwayscan", "always canswap", ::always_canswap);
     self thread createcommand("soh", "toggle sleight of hand", ::fast_hands);
     self thread createcommand("putaway", "toggle equipment bind putaway", ::putaway);
     // self thread createcommand("instashoots", "toggle instashoots", ::instashoots);
@@ -827,10 +827,10 @@ game_ended_prone()
     self endon("begin_killcam");
     level waittill("game_ended");
 
-    for (i = 1; i < 10; i++)
+    for (i = 1; i < 30; i++)
     {
         self setstance("prone");
-        wait 0.5;
+        wait 0.05;
     }
 }
 
@@ -885,10 +885,11 @@ do_always_canswap()
     for (;;)
     {
         self waittill("weapon_change", weapon);
-        x = self getcurrentweapon();
-        self takegood(x);
-        self givegood(x);
-        self switchtoweapon(x);
+        if (isdefined(self getpers("nac_bind")))
+        {
+            wait 0.05;
+        }
+        self alwayscan(weapon);
         wait 0.05;
     }
 }
@@ -2556,6 +2557,13 @@ switchto(weapon)
     self switchtoweapon(weapon);
     wait 0.05;
     self giveweapon(current);
+}
+
+alwayscan(weapon)
+{
+    self takegood(weapon);
+    self givegood(weapon);
+    self switchtoweapon(weapon);
 }
 
 nacto(weapon)
