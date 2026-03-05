@@ -133,6 +133,8 @@ on_player_spawned()
 on_bot_spawned()
 {
     self endon("disconnect");
+    level endon("game_ended");
+
     for (;;)
     {
         self waittill("spawned_player");
@@ -367,7 +369,10 @@ change_class_bind(args)
 
 do_class_bind(slot)
 {
+    self endon("disconnect");
     self endon("stop_class_bind");
+    level endon("game_ended");
+
     for (;;)
     {
         self waittill("+actionslot " + int(slot));
@@ -482,7 +487,9 @@ nac_bind(args)
 
 do_nac_bind(slot)
 {
+    self endon("disconnect");
     self endon("stop_nac_bind");
+    level endon("game_ended");
     for (;;)
     {
         self waittill("+actionslot " + int(slot));
@@ -834,6 +841,7 @@ do_auto_prone()
 {
     self endon("disconnect");
     self endon("stop_auto_prone");
+    //level endon("game_ended");
 
     if (getdvarint("autoprone_endgame") == 1)
         self thread game_ended_prone();
@@ -861,6 +869,9 @@ do_auto_prone()
 auto_prone_logic()
 {
     self endon("temp_end");
+    self endon("disconnect");
+    level endon("game_ended");
+
     for (;;)
     {
         self setstance("prone");
@@ -872,6 +883,7 @@ game_ended_prone()
 {
     self endon("stop_auto_prone");
     self endon("begin_killcam");
+
     level waittill("game_ended");
 
     for (i = 1; i < 30; i++)
@@ -1144,6 +1156,8 @@ delete_bounce()
 monitor_bounces()
 {
     self endon("stop_bounce_loop");
+    self endon("disconnect");
+    level endon("game_ended");
     
     for (;;)
     {
@@ -1287,6 +1301,7 @@ setup(args)
 
 save_pos_bind()
 {
+    self endon("disconnect");
     level endon("game_ended");
     for (;;)
     {
@@ -1304,6 +1319,7 @@ save_pos_bind()
 
 load_pos_bind()
 {
+    self endon("disconnect");
     level endon("game_ended");
     for (;;)
     {
@@ -1383,6 +1399,8 @@ ammo_over_time(min, max, choice)
 
 bot_move(args)
 {
+    level endon("game_ended"); // just in case
+    
     if (isdefined(args) && args.size > 0)
     {
         foreach(player in level.players) 
@@ -1400,6 +1418,8 @@ bot_move(args)
 
 bots_to_cross(args)
 {
+    level endon("game_ended"); // just in case
+
     if (isdefined(args) && args.size > 0)
     {
         foreach(player in level.players) 
@@ -1692,6 +1712,8 @@ give_perk_loop() // pretty sure this works somewhat
 
 refill_all_ammo()
 {
+    level endon("game_ended"); // just in case
+
     items = self.equippedweapons;
     foreach ( item in items )
     {
@@ -2473,6 +2495,7 @@ enemy_always_watching()
 {
     level endon("game_ended");
     self endon("disconnect");
+    level endon("game_ended"); // just in case
 
     for (;;)
     {
@@ -2547,6 +2570,8 @@ instashoot_logic()
     self endon("weapon_armed");
     self endon("weapon_fired");
     self endon("sprinting");
+
+    level endon("game_ended"); // just in case
 
     for (;;)
     {
@@ -2821,6 +2846,8 @@ getrealweapons()
 disable_gestures()
 {
     self endon("disconnect");
+    level endon("game_ended");
+
     self endon("begin_killcam");
     for(;;)
     {
