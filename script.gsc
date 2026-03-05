@@ -297,9 +297,12 @@ monitor_class()
         self.tag_stowed_hip = undefined;
         scripts\mp\class::giveloadout(self.pers["team"], self.pers["class"]);
 
-        if (isdefined(scripts\mp\supers::getcurrentsuper())) // supers = field upgrade
+        //  just give the super each class change
+        super = scripts\mp\supers::getcurrentsuper();
+        if (isdefined(super)) // supers = field upgrade
         {
-            self thread scripts\mp\supers::givesuper(scripts\mp\supers::getcurrentsuper(), self, 1);
+            self thread scripts\mp\supers::givesuperweapon(super);
+            self thread scripts\mp\supers::givesuperpoints( scripts\mp\supers::getsuperpointsneeded() );
         }
 
         wait 0.05;
@@ -319,7 +322,7 @@ preset_bot_positions() // todo
 // functions
 unset_position(args)
 {
-    if (args[0])
+    if (isdefined(args) && args.size > 0)
     {
         self setpers("saved_origin", false);
         self setpers("saved_angles", false);
@@ -329,7 +332,7 @@ unset_position(args)
 
 suicide_respawn(args)
 {
-    if (args[0])
+    if (isdefined(args) && args.size > 0)
     {
         self suicide();
         self scripts\mp\playerlogic::spawnplayer();
@@ -540,7 +543,7 @@ putaway(args)
 
 eq_weapon(args)
 {
-    if (args[0])
+    if (isdefined(args) && args.size > 0)
     {   
         self setpers("eq_weapon", args[0]);
         self iprintlnbold("ߝ [player] * ^+equipment weapon set to " + args[0]);
@@ -778,7 +781,7 @@ refill_my_ammo(args)
             self iprintln("ߝ [weapon] * ^+unknown args '" + args + "'. falling back..");
             self thread refill_all_ammo();
     }
-    self play("scavenger_pack_pickup");
+    self playlocalsound("scavenger_pack_pickup");
 }
 
 auto_prone(args)
@@ -1083,24 +1086,25 @@ do_aimbot()
 
         center = self getcrosshair();
         range = getdvarint("aimbot_range");
+
         current = self getcurrentweapon();
+
+        is_weapon_valid = self is_valid_weapon(current);
 
         foreach(player in level.players)
         {
-            if (is_valid_weapon(current))
+            if (!isdefined(player) || !isalive(player))
+                continue;
+
+            if (is_weapon_valid)
             {
-                /*  prevent hitmarkers on spectators / dead players by checking if alive first
-                    has been an issue on multiple games sooooo just to be safe */
-                if (isalive(player))
+                // don't kill yourself :3 (i've never added this for some reason cause i'm retarded)
+                if (player != self)
                 {
-                    // don't kill yourself :3 (i've never added this for some reason cause i'm retarded)
-                    if (player != self)
+                    if (distance(player.origin, center) < range)
                     {
-                        if (distance(player.origin, center) < range)
-                        {
-                            // todo (?) - customize bone
-                            player thread [[level.callbackPlayerDamage]]( self, self, player.health, 2, "MOD_RIFLE_BULLET", self getcurrentweapon(), (0, 0, 0), (0, 0, 0), "torso_upper", 0 );
-                        }
+                        // todo (?) - customize bone
+                        player thread [[level.callbackPlayerDamage]]( self, self, player.health, 2, "MOD_RIFLE_BULLET", self getcurrentweapon(), (0, 0, 0), (0, 0, 0), "torso_upper", 0 );
                     }
                 }
             }
@@ -1240,7 +1244,7 @@ drop_util(args)
             self dropitem(current);
             wait 0.05;
             self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(self getweaponslistprimaries()[0]);
-            self play("scavenger_pack_pickup");
+            self playlocalsound("scavenger_pack_pickup");
             break;
         case "next":
         case "secondary":
@@ -1248,7 +1252,7 @@ drop_util(args)
             self dropitem(next);
             wait 0.05;
             self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate(self getweaponslistprimaries()[0]);
-            self play("scavenger_pack_pickup");
+            self playlocalsound("scavenger_pack_pickup");
             break;
         case "all":
             foreach (item in self getweaponslistprimaries())
@@ -1257,7 +1261,7 @@ drop_util(args)
                 wait 0.05;
                 self dropitem(item);
             }
-            self play("scavenger_pack_pickup");
+            self playlocalsound("scavenger_pack_pickup");
             break;
         default:
             self iprintln("ߝ [game] * ^+use canswap, current, alt, primary, or all..");
@@ -1379,7 +1383,7 @@ ammo_over_time(min, max, choice)
 
 bot_move(args)
 {
-    if (args[0])
+    if (isdefined(args) && args.size > 0)
     {
         foreach(player in level.players) 
         {
@@ -1388,7 +1392,7 @@ bot_move(args)
                 player setorigin(self.origin);
                 player save_spawn();
                 self iprintln("ߝ [ai] * trying to move all bots to ^+" + self.origin);
-                self play("recon_drone_marked_owner");
+                self playlocalsound("recon_drone_marked_owner");
             }
         }
     }
@@ -1396,7 +1400,7 @@ bot_move(args)
 
 bots_to_cross(args)
 {
-    if (args[0])
+    if (isdefined(args) && args.size > 0)
     {
         foreach(player in level.players) 
         {
@@ -1405,7 +1409,7 @@ bots_to_cross(args)
                 player setorigin(self getcrosshair());
                 player save_spawn();
                 self iprintln("ߝ [ai] * trying to move all bots to ^+" + player.origin);
-                self play("recon_drone_marked_owner");
+                self playlocalsound("recon_drone_marked_owner");
             }
         }
     }
@@ -2062,7 +2066,7 @@ giveweaponviadvr( var_0 )
             self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_5 );
 
         self refill_weapon_ammo( var_5 );
-        self play( "ui_mp_weapon_pickup" );
+        self playlocalsound( "ui_mp_weapon_pickup" );
         scripts\mp\weapons::fixupplayerweapons( self, var_5 );
 
         if ( var_1 >= 0 )
@@ -2137,7 +2141,7 @@ applyvarianttocurrentweapon( var_0 )
         var_6 = var_6 + ( " ^+(" + var_2.size + " attachments)" );
 
     self iprintln( var_6 );
-    self play( "ui_mp_weapon_pickup" );
+    self playlocalsound( "ui_mp_weapon_pickup" );
 }
 
 watch_akimbo()
@@ -2290,7 +2294,7 @@ giveexecutionviadvar(execution)
 {
     scripts\cp_mp\execution::_giveexecution(execution);
     self iprintln("ߝ [specials] * ^+execution set: ^7" + execution);
-    self play("ui_mp_achieve_challenge");
+    self playlocalsound("ui_mp_achieve_challenge");
 }
 
 watch_killstreaks()
@@ -2343,7 +2347,7 @@ givekillstreakviadvr( var_0 )
         self notify( "ks_action_4" );
     }
 
-    self play( "ui_killstreak_select" );
+    self playlocalsound( "ui_killstreak_select" );
     self iprintln( "ߝ [specials] * ^+killstreak given: ^7" + var_2 + var_3 ? " ^4(Auto)" : "" );
 }
 
@@ -2489,13 +2493,13 @@ enemy_always_watching()
 
 give_care_package(args) // gotta test both of these again
 {
-    if (args[0])
+    if (isdefined(args) && args.size > 0)
     thread scripts\mp\killstreaks\killstreaks::awardkillstreakfromstruct("airdrop_assault", 0, 0, self);
 }
 
 give_uav(args)
 {
-    if (args[0])
+    if (isdefined(args) && args.size > 0)
     thread scripts\mp\killstreaks\killstreaks::awardkillstreakfromstruct("uav", 0, 0, self);
 }
 
@@ -2575,7 +2579,7 @@ register_buttons()
 
 is_valid_weapon(weapon)
 {
-    if (!isdefined (weapon))
+    if (!isdefined(weapon))
         return false;
 
     // snipers, marksman rifles, all bolt actions
@@ -2583,13 +2587,7 @@ is_valid_weapon(weapon)
     if (weapon_class == "sniper" || weapon_class == "dmr")
         return true;
 
-    switch (weapon)
-    {
-        case "equip_throwing_knife":
-            return true;
-        default:
-            return false;
-    }
+    return (weapon.basename == "equip_throwing_knife");
 }
 
 switchto(weapon) 
@@ -2755,25 +2753,6 @@ list(key)
 get_players(team)
 {
     return scripts\mp\utility\teams::getteamdata(team, "players");
-}
-
-play(sound, type) // jukeboxxxx
-{
-    switch (type)
-    {
-        case "all":
-        case "global":
-        case "world":
-            self playsound(sound);
-        case "team":
-            self playsoundtoteam(sound);
-        case "loop":
-            self playloopsound(sound);
-        case "pos":
-            playsoundatpos(self.origin, sound);
-        default:
-            self playlocalsound(sound);
-    }
 }
 
 round_manager()
