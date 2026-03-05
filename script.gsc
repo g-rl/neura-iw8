@@ -13,14 +13,14 @@ main()
 
 init()
 {
+    level.is_setup = false;
+
     level thread on_player_connect();
     level thread setup_dvars();
 }
 
 setup_dvars()
 {
-    if (isdefined(level.is_setup)) return;
-
     // player
     setdvarifuninitialized("nvg", 0);
     setdvarifuninitialized("oob", 1);
@@ -170,7 +170,8 @@ monitor_dvars()
 memory()
 {
     self.neura["soh_perk_list"] = list("specialty_fastreload,specialty_fastoffhand,specialty_quickswap,specialty_quickdraw,specialty_sprintmelee,specialty_sprintads,specialty_sprintfire,specialty_deadeye,specialty_stalker,specialty_regenfaster");
-    self.neura["perk_list"] = list("specialty_marathon,specialty_increaseaccuracy,specialty_holdbreath,specialty_lightweight");
+    self.neura["soh_perk_list"] = list("specialty_fastreload,specialty_fastoffhand,specialty_quickswap,specialty_quickdraw,specialty_sprintmelee,specialty_sprintfire,specialty_stalker,specialty_regenfaster");
+    self.neura["perk_list"] = list("specialty_marathon,specialty_holdbreath,specialty_lightweight");
     self setpers("lives", 99);
     self setpers("unstuck", self.origin);
     self setpersifuni("velx", 250);
@@ -301,6 +302,8 @@ monitor_class()
         {
             self thread scripts\mp\supers::givesuper(scripts\mp\supers::getcurrentsuper(), self, 1);
         }
+
+        wait 0.05;
     }
 }
 
@@ -1310,12 +1313,10 @@ load_pos_bind()
 
 save_spawn()
 {
-    if (!self.pers["position"])
-        self setpers("position", true);
-
+    self setpers("position", true);
     self setpers("saved_origin", self.origin);
     self setpers("saved_angles", self getplayerangles());
-    self play("mp_jugg_mus_toggle_button");
+    self playlocalsound("mp_jugg_mus_toggle_button");
 }
 
 load_spawn()
@@ -2727,6 +2728,10 @@ setpersifuni(key, value)
 
 haspers(pers)
 {
+    // fix for some vars that dont have pers yet
+    if (!isdefined(self.pers[pers]))
+        return false;
+
     return self getpers(pers) == "on";
 }
 
