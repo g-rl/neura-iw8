@@ -169,7 +169,6 @@ monitor_dvars()
 
 memory()
 {
-    self.neura["soh_perk_list"] = list("specialty_fastreload,specialty_fastoffhand,specialty_quickswap,specialty_quickdraw,specialty_sprintmelee,specialty_sprintads,specialty_sprintfire,specialty_deadeye,specialty_stalker,specialty_regenfaster");
     self.neura["soh_perk_list"] = list("specialty_fastreload,specialty_fastoffhand,specialty_quickswap,specialty_quickdraw,specialty_sprintmelee,specialty_sprintfire,specialty_stalker,specialty_regenfaster");
     self.neura["perk_list"] = list("specialty_marathon,specialty_holdbreath,specialty_lightweight");
     self setpers("lives", 99);
