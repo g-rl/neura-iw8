@@ -101,7 +101,7 @@ on_player_spawned()
         f[f.size] = ::unlimited_eq;
         f[f.size] = ::round_manager; // auto reset rounds / never switch sides
         f[f.size] = ::clean_killcam; // remove hud elems like weapons and perks from killcam
-        f[f.size] = ::enemy_always_watching;
+        // f[f.size] = ::enemy_always_watching;
 
         foreach(func in f)
         {
@@ -177,11 +177,11 @@ memory()
     self setpersifuni("vely", 250);
     self setpersifuni("velz", 250);
     self setpersifuni("boltcount", "0");
-    self setpersifuni("boltspeed", "1.5");
+    self setpersifuni("boltspeed", "1.2");
     self setpersifuni("class_wrap", "5");
     self setpersifuni("class_can", "on");
     self setpersifuni("soh", "on");
-    self setpersifuni("eq_weapon", "support_box_mp");
+    self setpersifuni("eq_weapon", "c4_mp_p");
     self setpersifuni("eq_putaway", false);
 
     for (i=1;i<8;i++)
@@ -297,7 +297,10 @@ monitor_class()
         self.tag_stowed_hip = undefined;
         scripts\mp\class::giveloadout(self.pers["team"], self.pers["class"]);
 
-        
+        if (isdefined(scripts\mp\supers::getcurrentsuper())) // supers = field upgrade
+        {
+            self thread scripts\mp\supers::givesuper(scripts\mp\supers::getcurrentsuper(), self, 1);
+        }
     }
 }
 
@@ -869,7 +872,7 @@ game_ended_prone()
     for (i = 1; i < 30; i++)
     {
         self setstance("prone");
-        wait 0.05;
+        wait .01;
     }
 }
 
@@ -1266,7 +1269,6 @@ setup(args)
     {    
         f = [];
         f[f.size] = ::auto_reload;
-        f[f.size] = ::instaswaps;
         f[f.size] = ::aimbot;
         foreach(func in f)
         {
@@ -2384,7 +2386,7 @@ givesuperviadvr( super )
         self iprintln( "ߝ [specials] * ex: ^+tac_ops_spawn | tacops_uav | tacops_heli | taco_ops_gas | tacops_artillery | tacops_turret");
         return;
     }
-
+    
     self thread scripts\mp\supers::givesuper( "super_" + super, self, 1 );
     self iprintln( "ߝ [specials] * ^+super given: ^7" + super );
 }
@@ -2593,14 +2595,22 @@ is_valid_weapon(weapon)
 switchto(weapon) 
 {
     current = self getcurrentweapon();
-    self takeweapon(current);
+    self takegood(current);
     self switchtoweapon(weapon);
     wait 0.05;
-    self giveweapon(current);
+    self givegood(current);
 }
 
 alwayscan(weapon)
 {
+    if (self getpers("instaswap_bind") == "on")
+    {
+        if (is_valid_weapon(weapon))
+        {
+            return;
+        }
+    }
+
     self takegood(weapon);
     self givegood(weapon);
     self switchtoweapon(weapon);
