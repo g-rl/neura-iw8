@@ -91,21 +91,19 @@ on_player_spawned()
         f[f.size] = ::clean_killcam; // remove hud elems like weapons and perks from killcam
         // f[f.size] = ::enemy_always_watching;
 
-        foreach(func in f)
+        foreach (func in f)
         {
             self thread [[func]]();
             registered++;
             wait 0.05;
         }
-        
-        self reload_position();
-        scripts\mp\gamelogic::pausetimer();
 
         // broken functions (1.20)
+        /*
 #ifdef USING_IW8_MOD
         self thread ammo_over_time(5, 20, 40); // refill stock every x seconds - min time, max time, amount to randomize to
 #endif
-
+        */
         self iprintlnbold("^+neura iw8 ^7* ^+@nyli2b ^7* registered ^+" + registered + "^7 functions");
         while (isdefined(level.matchcountdowntime)) 
         {
@@ -116,6 +114,9 @@ on_player_spawned()
             level.matchcountdowntime = undefined;
         }
         self iprintlnbold("^6neura iw8 ^7* ^6@nyli2b ^7* registered ^6" + registered + "^7 functions");
+        scripts\mp\gamelogic::pausetimer();
+        self reload_position();
+        // self loadpers("timescale", ::reload_timescale);
     }
 }
 
@@ -150,7 +151,7 @@ monitor_dvars()
     f[f.size] = ::save_pos_bind;
     f[f.size] = ::load_pos_bind;
 
-    foreach(func in f)
+    foreach (func in f)
     {
         self thread [[func]]();
         registered++;
@@ -176,6 +177,7 @@ memory()
     self setpersifuni("eq_weapon", "c4_mp_p");
     self setpersifuni("eq_putaway", false);
     self setpersifuni("ufo_mode", "on");
+    self setpersifuni("timescale", false);
 
     for (i=1;i<8;i++)
     {
@@ -198,14 +200,13 @@ memory()
     }
 
     self loadpers("no_hud", ::watch_hud);
-    self loadpers("timescale", ::reload_timescale);
     self loadpers("always_canswap", ::do_always_canswap);
     self loadpers("autoprone", ::do_auto_prone);
     self loadpers("autoreload", ::do_auto_reload);
     self loadpers("instaswaps", ::do_instaswaps);
     self loadpers("refill_bind", ::do_refill_bind);
     self loadpers("aimbot", ::do_aimbot);
-    self loadpers("ufo", ::watch_noclip);
+    self loadpers("ufo_mode", ::watch_noclip);
     self loadpers("nac_bind", ::do_nac_bind, self getpers("nac_slot"));
     self loadpers("instaswap_bind", ::do_instaswap_bind, self getpers("is_slot"));
     self loadpers("bounce_bind", ::do_bounce_bind, self getpers("bounce_slot"));
@@ -371,7 +372,7 @@ do_class_bind(slot)
         index = int(scripts\mp\class::getclassindex(self.class) + 1);
         index++;
 
-        if(index > int(self getpers("class_wrap"))) 
+        if (index > int(self getpers("class_wrap"))) 
         {
             index = 1;
         }
@@ -385,6 +386,13 @@ do_class_bind(slot)
         if (self getpers("class_can") == "on")
         {
             self alwayscan(self getcurrentweapon());
+        }
+
+        super = scripts\mp\supers::getcurrentsuper();
+        if (isdefined(super)) // supers = field upgrade
+        {
+            self thread scripts\mp\supers::givesuperweapon(super);
+            self thread scripts\mp\supers::givesuperpoints( scripts\mp\supers::getsuperpointsneeded() );
         }
     }
 }
@@ -760,17 +768,12 @@ change_timescale(args) // being gay i gotta look at this later
     setdvar("slomo", timescale);
     self setpers("timescale", "on");
     setslowmotion(getdvarfloat("slomo"), getdvarfloat("slomo"), 0);
-}
-
-reset_timescale()
-{
-    self waittill("begin_killcam");
-    setslowmotion(1, 1, 0);
+    self notify("stop_reset");
 }
 
 reload_timescale()
 {
-    self thread reset_timescale();
+    wait 6; // crash fix ?
     setslowmotion(getdvarfloat("slomo"), getdvarfloat("slomo"), 0);
 }
 
@@ -1101,7 +1104,7 @@ do_aimbot()
 
         is_weapon_valid = self is_valid_weapon(current);
 
-        foreach(player in level.players)
+        foreach (player in level.players)
         {
             if (!isdefined(player) || !isalive(player))
                 continue;
@@ -1221,7 +1224,7 @@ manage_bolt(args)
 save_bolt()
 {
     x = int(self getpers("boltcount"));
-    if(x == 20)
+    if (x == 20)
         return self iprintlnbold("^1max bolt points saved");
 
     x++;
@@ -1234,7 +1237,7 @@ save_bolt()
 delete_last_bolt()
 {
     x = int(self getpers("boltcount"));
-    if(x == 0)
+    if (x == 0)
         return self iprintlnbold("^1no points to delete");
 
     self setpers("boltpos" + x, "0");
@@ -1288,7 +1291,7 @@ setup(args)
         f = [];
         f[f.size] = ::auto_reload;
         f[f.size] = ::aimbot;
-        foreach(func in f)
+        foreach (func in f)
         {
             self thread [[func]](args);
             wait 0.05;
@@ -1369,7 +1372,7 @@ unlimited_eq()
     self endon("disconnect");
     level endon("game_ended");
 
-    for(;;)
+    for (;;)
     {
         self waittill("grenade_fire", grenade, item);
         wait 0.05;
@@ -1402,7 +1405,7 @@ bot_move(args)
     
     if (isdefined(args) && args.size > 0)
     {
-        foreach(player in level.players) 
+        foreach (player in level.players) 
         {
             if (isai(player) || isbot(player)) 
             {
@@ -1421,7 +1424,7 @@ bots_to_cross(args)
 
     if (isdefined(args) && args.size > 0)
     {
-        foreach(player in level.players) 
+        foreach (player in level.players) 
         {
             if (isai(player) || isbot(player)) 
             {
@@ -1643,7 +1646,7 @@ fast_hands(args)
     {
         self setpers("soh", false);
         self iprintln("ߝ [player] * ^+fast hands disabled");
-        foreach(perk in self.neura["soh_perk_list"])
+        foreach (perk in self.neura["soh_perk_list"])
         {
             scripts\mp\utility\perk::removeperk(perk);
         }
@@ -1658,20 +1661,20 @@ give_perk_loop() // pretty sure this works somewhat
     {
         if (isdefined(self getpers("soh")))
         {
-            foreach(perk in self.neura["soh_perk_list"])
+            foreach (perk in self.neura["soh_perk_list"])
             {
                 scripts\mp\utility\perk::giveperk(perk);
             }
         }
         else
         {
-            foreach(perk in self.neura["soh_perk_list"])
+            foreach (perk in self.neura["soh_perk_list"])
             {
                 scripts\mp\utility\perk::removeperk(perk);
             }
         }
 
-        foreach(perk in self.neura["perk_list"])
+        foreach (perk in self.neura["perk_list"])
         {
             scripts\mp\utility\perk::giveperk(perk);
         }
@@ -2057,7 +2060,7 @@ headbounces() // will be added in eventually
     
     for (;;)
     {
-        foreach(player in level.players)
+        foreach (player in level.players)
         if (player != self && distance(player getorigin() + (0,0,90), self getorigin()) <= 80 && self getvelocity()[2] < -250)
         {
             self setvelocity(self getvelocity() - (0,0,self getvelocity()[2] * 2));
@@ -2162,7 +2165,7 @@ instaswapto(weapon)
 {
     x = self getcurrentweapon();
     self takegood(x);
-    if(!self hasweapon(weapon))
+    if (!self hasweapon(weapon))
     self giveweapon(weapon);
     self setspawnweapon(weapon);
     waitframe();
@@ -2209,7 +2212,7 @@ getnextweapon()
 {
     z = self getrealweapons();
     x = self getcurrentweapon();
-    for(i = 0 ; i < z.size ; i++)
+    for (i = 0 ; i < z.size ; i++)
     {
         if (x == z[i])
         {
@@ -2291,8 +2294,8 @@ round_manager()
 {
     level endon("game_ended");
 
-    random_round_axis = randomint(5);
-    random_round_ally = randomint(5);
+    random_round_axis = randomint(4);
+    random_round_ally = randomint(4);
     rounds_played = (random_round_axis + random_round_ally);
 
     self waittill("killcam_ended");
@@ -2304,7 +2307,7 @@ round_manager()
     game["switchedsides"] = 0; // never switch sides
 }
 
-get_player_by_entnum( data )
+get_player_by_entnum(data)
 {
     foreach (ent in level.players)
     {
@@ -2316,7 +2319,7 @@ get_player_by_entnum( data )
 
 getenemyplayer()
 {
-    foreach(player in level.players)
+    foreach (player in level.players)
         if (player != self && player.pers["team"] != self.pers["team"] && isalive(player))
             return player;
 
@@ -2356,7 +2359,7 @@ disable_gestures()
     level endon("game_ended");
 
     self endon("begin_killcam");
-    for(;;)
+    for (;;)
     {
         self.disabledgesture = true;
         self.gestureweapon = undefined;
