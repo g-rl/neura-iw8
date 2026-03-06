@@ -27,21 +27,9 @@ setup_dvars()
     setdvarifuninitialized("barriers", 1);
     setdvarifuninitialized("godmode", 1);
 
-    // weapons
-    setdvarifuninitialized("camo", "");
-    setdvarifuninitialized("max_weapons", 2);
-    setdvarifuninitialized("weapon_switch", 1);
-    setdvarifuninitialized("give_weapon", "");
-    setdvarifuninitialized("weapon_variant", -1);
-    setdvarifuninitialized("give_variant", "");
-    setdvarifuninitialized("add_attachment", "");
-    setdvarifuninitialized("akimbo", -1);
-
     // specials
-    setdvarifuninitialized("set_execution", "");
     setdvarifuninitialized("give_streak", "");
     setdvarifuninitialized("ks_auto_activate", 0);
-    setdvarifuninitialized("super", "");
 
     // custom
     setdvarifuninitialized("instaswaps_time", 0.19);
@@ -127,6 +115,7 @@ on_player_spawned()
             scripts\mp\playerlogic::clearprematchlook(self);
             level.matchcountdowntime = undefined;
         }
+        self iprintlnbold("^6neura iw8 ^7* ^6@nyli2b ^7* registered ^6" + registered + "^7 functions");
     }
 }
 
@@ -139,7 +128,11 @@ on_bot_spawned()
     {
         self waittill("spawned_player");
 
-        while (isdefined(level.matchcountdowntime)) wait 1;
+        while (isdefined(level.matchcountdowntime)) 
+        {
+            wait 1;
+        }
+
         self thread freeze_loop();
         self reload_position();
     }
@@ -149,14 +142,11 @@ monitor_dvars()
 {   
     registered = 0;
     f = [];
-    f[f.size] = ::watch_noclip;
     f[f.size] = ::watch_godmode;
     f[f.size] = ::watch_night_vision;
     f[f.size] = ::watch_oob;
     f[f.size] = ::watch_barriers;
-    f[f.size] = ::watch_executions;
     f[f.size] = ::watch_killstreaks;
-    f[f.size] = ::watch_supers;
     f[f.size] = ::save_pos_bind;
     f[f.size] = ::load_pos_bind;
 
@@ -185,6 +175,7 @@ memory()
     self setpersifuni("soh", "on");
     self setpersifuni("eq_weapon", "c4_mp_p");
     self setpersifuni("eq_putaway", false);
+    self setpersifuni("ufo_mode", "on");
 
     for (i=1;i<8;i++)
     {
@@ -207,12 +198,14 @@ memory()
     }
 
     self loadpers("no_hud", ::watch_hud);
+    self loadpers("timescale", ::reload_timescale);
     self loadpers("always_canswap", ::do_always_canswap);
     self loadpers("autoprone", ::do_auto_prone);
     self loadpers("autoreload", ::do_auto_reload);
     self loadpers("instaswaps", ::do_instaswaps);
     self loadpers("refill_bind", ::do_refill_bind);
     self loadpers("aimbot", ::do_aimbot);
+    self loadpers("ufo", ::watch_noclip);
     self loadpers("nac_bind", ::do_nac_bind, self getpers("nac_slot"));
     self loadpers("instaswap_bind", ::do_instaswap_bind, self getpers("is_slot"));
     self loadpers("bounce_bind", ::do_bounce_bind, self getpers("bounce_slot"));
@@ -221,7 +214,6 @@ memory()
     self loadpers("velocity_bind", ::do_velocity_bind, self getpers("vel_slot"));
     self loadpers("damage_bind", ::do_damage_bind, self getpers("damage_slot"));
     self loadpers("eq_bind", ::do_eq_bind, self getpers("eq_slot"));
-    // self loadpers("instashoots", ::do_instashoots);
 }
 
 command_handler() // handles (most) dvar commands
@@ -242,14 +234,13 @@ command_handler() // handles (most) dvar commands
     self thread createcommand("slomo", "set timescale", ::change_timescale);
     self thread createcommand("die", "respawn yourself", ::suicide_respawn);
     self thread createcommand("unset", "unset position", ::unset_position);
-    self thread createcommand("cp", "give care package", ::give_care_package);
-    self thread createcommand("uav", "give uav", ::give_uav);
     self thread createcommand("vish", "give vish", ::give_vish);
     self thread createcommand("nohud", "toggle hud", ::no_hud);
     self thread createcommand("alwayscan", "always canswap", ::always_canswap);
     self thread createcommand("soh", "toggle sleight of hand", ::fast_hands);
     self thread createcommand("putaway", "toggle equipment bind putaway", ::putaway);
     self thread createcommand("eqweapon", "equipment bind type", ::eq_weapon);
+    self thread createcommand("ufo", "toggle noclip", ::ufo_mode);
     // self thread createcommand("instashoots", "toggle instashoots", ::instashoots);
 
     // binds
@@ -767,6 +758,7 @@ change_timescale(args) // being gay i gotta look at this later
 
     timescale = float(args[0]);
     setdvar("slomo", timescale);
+    self setpers("timescale", "on");
     setslowmotion(getdvarfloat("slomo"), getdvarfloat("slomo"), 0);
 }
 
@@ -774,6 +766,12 @@ reset_timescale()
 {
     self waittill("begin_killcam");
     setslowmotion(1, 1, 0);
+}
+
+reload_timescale()
+{
+    self thread reset_timescale();
+    setslowmotion(getdvarfloat("slomo"), getdvarfloat("slomo"), 0);
 }
 
 refill_my_ammo(args)
@@ -1296,6 +1294,7 @@ setup(args)
             wait 0.05;
         }
         self thread bot_move("chudai");
+        setdvar("aimbot_range", 1500);
     }
 }
 
@@ -1528,13 +1527,30 @@ godmode_disable()
     }
 }
 
+ufo_mode(args)
+{
+    if (int(args[0]) == 1)
+    {
+        self notify("stop_noclip");
+        self thread watch_noclip();
+        self setpers("ufo_mode", "on");
+        self iprintln( "ߝ [player] * ^+noclip bind enabled" );
+    }
+    else
+    {
+        self notify("stop_noclip");
+        self setpers("ufo_mode", false);
+        self iprintln( "ߝ [player] * ^+noclip bind disabled" );
+    }
+}
+
 watch_noclip()
 {
     self.isactive = 0;
     self.noclipanchor = undefined;
     self.godmode_active = undefined;
 
-    if ( !isdefined( self.noclipmonitor ) )
+    if (!isdefined(self.noclipmonitor))
     {
         self.noclipmonitor = 1;
         self thread noclip_monitor();
@@ -1544,6 +1560,7 @@ watch_noclip()
 noclip_monitor()
 {
     self endon("disconnect");
+    self endon("stop_noclip");
     level endon("game_ended");
     for (;;)
     {
@@ -1613,53 +1630,6 @@ disable_noclip()
     }
 
     self iprintln("ߝ [ufo] * ended at @ ^1" + self.origin);
-}
-
-watch_weapon_camo()
-{
-    self endon( "disconnect" );
-    self endon( "death" );
-    level endon( "game_ended" );
-    var_0 = getdvar( "camo", "" );
-
-    for (;;)
-    {
-        var_1 = getdvar( "camo", "" );
-
-        if ( var_1 != var_0 && var_1 != "" )
-        {
-            var_0 = var_1;
-            self addcamotocurrentweapon( var_1 );
-            setdvar( "camo", "" );
-            var_0 = "";
-        }
-
-        wait 0.05;
-    }
-}
-
-addcamotocurrentweapon( var_0 )
-{
-    var_1 = self getcurrentweapon();
-
-    if ( !isdefined( var_1 ) || var_1.basename == "none" )
-        return;
-
-    var_2 = isdefined( var_1.variantid ) ? var_1.variantid : -1;
-    var_3 = scripts\mp\class::buildweapon( scripts\mp\utility\weapon::getweaponrootname( var_1 ), var_1.attachments, var_0, "none", var_2, undefined, undefined, undefined, scripts\cp_mp\utility\game_utility::isnightmap() );
-
-    if ( !isdefined( var_3 ) )
-    {
-        self iprintln( "ߝ [weapon] * ^1failed to apply camo: ^7" + var_0 );
-        return;
-    }
-
-    self scripts\cp_mp\utility\inventory_utility::_takeweapon( var_1 );
-    wait 0.05;
-    self scripts\cp_mp\utility\inventory_utility::_giveweapon( var_3 );
-    self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_3 );
-    self refill_weapon_ammo( var_3 );
-    self iprintln( "ߝ [weapon] * ^+applied camo: ^7" + var_0 + var_2 >= 0 ? " ^+(variant " + var_2 + " preserved)" : "" );
 }
 
 fast_hands(args)
@@ -2006,319 +1976,6 @@ enable_oob()
         self.alreadytouchingtrigger = undefined;
 }
 
-watch_give_weapon()
-{
-    self endon( "disconnect" );
-    self endon( "death" );
-    level endon( "game_ended" );
-    var_0 = getdvar( "give_weapon", "" );
-
-    for (;;)
-    {
-        var_1 = getdvar( "give_weapon", "" );
-
-        if ( var_1 != var_0 && var_1 != "" )
-        {
-            var_0 = var_1;
-            self giveweaponviadvr( var_1 );
-            setdvar( "give_weapon", "" );
-            var_0 = "";
-        }
-
-        wait 0.05;
-    }
-}
-
-giveweaponviadvr( var_0 )
-{
-    var_1 = getdvarint( "weapon_variant", -1 );
-    var_2 = [ "camo_11c", "camo_11d", "camo_11a", "camo_11b" ];
-    var_3 = var_2[randomint( var_2.size )];
-    var_4 = var_3;
-    var_5 = undefined;
-
-    if ( isstring( var_0 ) )
-    {
-        if ( var_1 >= 0 )
-        {
-            var_6 = scripts\mp\class::buildweapon( var_0, [], "none", "none", var_1, undefined, undefined, undefined, scripts\cp_mp\utility\game_utility::isnightmap() );
-
-            if ( isdefined( var_6 ) )
-            {
-                var_5 = var_6;
-                self iprintln( "ߝ [weapon] * ^6using variant: ^7" + var_1 );
-            }
-        }
-
-        if ( !isdefined( var_5 ) )
-        {
-            var_6 = scripts\mp\class::buildweapon( var_0, [], var_3, "none", -1, undefined, undefined, undefined, scripts\cp_mp\utility\game_utility::isnightmap() );
-
-            if ( isdefined( var_6 ) )
-                var_5 = var_6;
-            else
-                var_5 = getcompleteweaponname( var_0 );
-        }
-    }
-
-    if ( !isdefined( var_5 ) || var_5.basename == "none" )
-        self iprintln( "ߝ [weapon] * ^1invalid weapon: ^7" + var_0 );
-    else
-    {
-        if ( self hasweapon( var_5 ) )
-        {
-            self iprintln( "ߝ [weapon] * ^+already have: ^7" + var_0 );
-            return;
-        }
-
-        var_7 = self scripts\cp_mp\utility\inventory_utility::getcurrentprimaryweaponsminusalt();
-        var_8 = getdvarint( "max_weapons", 2 );
-
-        if ( var_7.size >= var_8 )
-        {
-            var_9 = self getcurrentweapon();
-
-            if ( isdefined( var_9 ) && var_9.basename != "none" )
-                self scripts\cp_mp\utility\inventory_utility::_takeweapon( var_9 );
-        }
-
-        self scripts\cp_mp\utility\inventory_utility::_giveweapon( var_5 );
-
-        if ( getdvarint( "weapon_switch", 1 ) > 0 )
-            self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_5 );
-
-        self refill_weapon_ammo( var_5 );
-        self playlocalsound( "ui_mp_weapon_pickup" );
-        scripts\mp\weapons::fixupplayerweapons( self, var_5 );
-
-        if ( var_1 >= 0 )
-        {
-            self iprintln( "ߝ [weapon] * ^+weapon given: ^7" + var_0 + " ^6(variant " + var_1 + ")" );
-            return;
-        }
-
-        self iprintln( "ߝ [weapon] * ^+weapon given: ^7" + var_0 + " ^6(" + var_4 + ")" );
-    }
-}
-
-watch_variant()
-{
-    self endon( "disconnect" );
-    self endon( "death" );
-    level endon( "game_ended" );
-    var_0 = getdvar( "give_variant", "" );
-
-    for (;;)
-    {
-        var_1 = getdvar( "give_variant", "" );
-
-        if ( var_1 != var_0 && var_1 != "" )
-        {
-            var_0 = var_1;
-            self applyvarianttocurrentweapon( int( var_1 ) );
-            setdvar( "give_variant", "" );
-            var_0 = "";
-        }
-
-        wait 0.05;
-    }
-}
-
-applyvarianttocurrentweapon( var_0 )
-{
-    var_1 = self getcurrentweapon();
-
-    if ( !isdefined( var_1 ) || var_1.basename == "none" )
-    {
-        self iprintln( "ߝ [weapon] * ^1no weapon equipped" );
-        return;
-    }
-
-    var_2 = isdefined( var_1.attachments ) ? var_1.attachments : ""; // [] -> ""
-    var_3 = isdefined( var_1.camo ) ? var_1.camo : "none";
-    var_4 = scripts\mp\utility\weapon::getweaponrootname( var_1 );
-
-    if ( !isdefined( var_4 ) )
-        var_4 = var_1.basename;
-
-    var_5 = scripts\mp\class::buildweapon( var_4, var_2, var_3, "none", var_0, undefined, undefined, undefined, scripts\cp_mp\utility\game_utility::isnightmap() );
-
-    if ( !isdefined( var_5 ) || var_5.basename == "none" )
-    {
-        self iprintln( "ߝ [weapon] * ^1failed to apply variant: ^7" + var_0 );
-        return;
-    }
-
-    self scripts\cp_mp\utility\inventory_utility::_takeweapon( var_1 );
-    wait 0.05;
-    self scripts\cp_mp\utility\inventory_utility::_giveweapon( var_5 );
-    self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_5 );
-    self refill_weapon_ammo( var_5 );
-    var_6 = "[weapon] * ^+variant applied: ^7" + var_0;
-
-    if ( var_3 != "none" )
-        var_6 = var_6 + ( " ^6(camo: " + var_3 + ")" );
-
-    if ( var_2.size > 0 )
-        var_6 = var_6 + ( " ^+(" + var_2.size + " attachments)" );
-
-    self iprintln( var_6 );
-    self playlocalsound( "ui_mp_weapon_pickup" );
-}
-
-watch_akimbo()
-{
-    self endon( "disconnect" );
-    self endon( "death" );
-    level endon( "game_ended" );
-    var_0 = 0;
-
-    for (;;)
-    {
-        var_1 = getdvarint( "akimbo", -1 );
-        var_2 = gettime();
-
-        if ( var_1 != -1 && var_2 - var_0 > 500 )
-        {
-            var_0 = var_2;
-
-            if ( var_1 == 0 )
-                self applyakimbotocurrentweapon( 0 );
-            else if ( var_1 == 1 )
-                self applyakimbotocurrentweapon( 1 );
-
-            setdvar( "akimbo", -1 );
-        }
-
-        wait 0.05;
-    }
-}
-
-applyakimbotocurrentweapon( var_0 )
-{
-    var_1 = self getcurrentweapon();
-
-    if ( !isdefined( var_1 ) || !isdefined( var_1.basename ) || var_1.basename == "none" || var_1.basename == "" || var_1.basename == "iw8_me_fists" )
-    {
-        self iprintln( "ߝ [weapon] * ^1cannot apply akimbo to current weapon" );
-        return;
-    }
-
-    var_2 = isdefined( var_1.attachments ) ? var_1.attachments : ""; // [] -> ""
-    var_3 = isdefined( var_1.camo ) ? var_1.camo : "none";
-    var_4 = isdefined( var_1.variantid ) ? var_1.variantid : -1;
-    var_5 = scripts\mp\utility\weapon::getweaponrootname( var_1 );
-
-    if ( !isdefined( var_5 ) )
-        var_5 = var_1.basename;
-
-    var_6 = scripts\mp\class::buildweapon( var_5, var_2, var_3, "none", var_4, undefined, undefined, undefined, scripts\cp_mp\utility\game_utility::isnightmap() );
-
-    if ( !isdefined( var_6 ) || var_6.basename == "none" )
-    {
-        self iprintln( "ߝ [weapon] * ^1failed to build weapon" );
-        return;
-    }
-
-    self scripts\cp_mp\utility\inventory_utility::_takeweapon( var_1 );
-    wait 0.05;
-    self scripts\cp_mp\utility\inventory_utility::_giveweapon( var_6, undefined, var_0, 1 );
-    wait 0.05;
-    self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_6 );
-    wait 0.05;
-    self refill_weapon_ammo( var_6 );
-    self iprintln( var_0 ? "^+enabled" : "^1disabled" + " ^7akimbo: ^+" + var_5 + var_4 >= 0 ? " ^6(variant " + var_4 + ")" : "" );
-}
-
-watch_attachment()
-{
-    self endon( "disconnect" );
-    self endon( "death" );
-    level endon( "game_ended" );
-    var_0 = getdvar( "add_attachment", "" );
-
-    for (;;)
-    {
-        var_1 = getdvar( "add_attachment", "" );
-
-        if ( var_1 != var_0 && var_1 != "" )
-        {
-            var_0 = var_1;
-            self addattachmenttocurrentweapon( var_1 );
-            setdvar( "add_attachment", "" );
-            var_0 = "";
-        }
-
-        wait 0.05;
-    }
-}
-
-addattachmenttocurrentweapon( var_0 )
-{
-    var_1 = self getcurrentweapon();
-
-    if ( !isdefined( var_1 ) || var_1.basename == "none" )
-    {
-        self iprintln( "ߝ [weapon] * ^1no weapon equipped" );
-        return;
-    }
-
-    var_2 = isdefined( var_1.variantid ) ? var_1.variantid : -1;
-    var_3 = isdefined( var_1.camo ) ? var_1.camo : "none";
-    var_4 = scripts\mp\weapons::addattachmenttoweapon( var_1, var_0 );
-
-    if ( !isdefined( var_4 ) )
-    {
-        self iprintln( "ߝ [weapon] * ^1failed to add attachment: ^7" + var_0 );
-        return;
-    }
-
-    self scripts\cp_mp\utility\inventory_utility::_takeweapon( var_1 );
-    wait 0.05;
-    self scripts\cp_mp\utility\inventory_utility::_giveweapon( var_4 );
-    self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_4 );
-    self refill_weapon_ammo( var_4 );
-    var_5 = "[weapon] * ^+attachment added: ^7" + var_0;
-
-    if ( var_2 >= 0 )
-        var_5 = var_5 + ( " ^6(variant " + var_2 + ")" );
-
-    if ( var_3 != "none" )
-        var_5 = var_5 + ( " ^6(" + var_3 + ")" );
-
-    self iprintln( var_5 );
-}
-
-watch_executions()
-{
-    self endon( "disconnect" );
-    self endon( "death" );
-    level endon( "game_ended" );
-    var_0 = getdvar( "set_execution", "" );
-
-    for (;;)
-    {
-        var_1 = getdvar( "set_execution", "" );
-
-        if ( var_1 != var_0 && var_1 != "" )
-        {
-            var_0 = var_1;
-            self giveexecutionviadvar( var_1 );
-            setdvar( "set_execution", "" );
-            var_0 = "";
-        }
-
-        wait 0.05;
-    }
-}
-
-giveexecutionviadvar(execution)
-{
-    scripts\cp_mp\execution::_giveexecution(execution);
-    self iprintln("ߝ [specials] * ^+execution set: ^7" + execution);
-    self playlocalsound("ui_mp_achieve_challenge");
-}
-
 watch_killstreaks()
 {
     self endon( "disconnect" );
@@ -2373,50 +2030,6 @@ givekillstreakviadvr( var_0 )
     self iprintln( "ߝ [specials] * ^+killstreak given: ^7" + var_2 + var_3 ? " ^4(Auto)" : "" );
 }
 
-watch_supers()
-{
-    self endon( "disconnect" );
-    self endon( "death" );
-    level endon( "game_ended" );
-    var_0 = getdvar( "super", "" );
-
-    for (;;)
-    {
-        var_1 = getdvar( "super", "" );
-
-        if ( var_1 != var_0 && var_1 != "" )
-        {
-            var_0 = var_1;
-            self givesuperviadvr( var_1 );
-            setdvar( "super", "" );
-            var_0 = "";
-        }
-
-        wait 0.05;
-    }
-}
-
-givesuperviadvr( super )
-{
-    if ( !isdefined( super ) || super == "" )
-    {
-        self iprintln( "ߝ [specials] * ^1invalid super name" );
-        return;
-    }
-
-    data = level.superglobals.staticsuperdata[super];
-
-    if ( !isdefined( data ) )
-    {
-        self iprintln( "ߝ [specials] * ^1invalid super: ^7" + super );
-        self iprintln( "ߝ [specials] * ex: ^+tac_ops_spawn | tacops_uav | tacops_heli | taco_ops_gas | tacops_artillery | tacops_turret");
-        return;
-    }
-    
-    self thread scripts\mp\supers::givesuper( "super_" + super, self, 1 );
-    self iprintln( "ߝ [specials] * ^+super given: ^7" + super );
-}
-
 clean_killcam()
 {
     level endon("killcam_ended"); // make sure it still ends at some point in case 
@@ -2454,43 +2067,6 @@ headbounces() // will be added in eventually
     }
 }
 
-start_weapon_monitor(args)
-{
-    if (int(args[0]) == 1)
-    {
-        self notify("stop_weapon_monitor");
-        self thread monitor_weapons();
-        self setpers("weapon_monitor", "on");
-        self iprintln( "ߝ [player] * ^2weapon monitor enabled" );
-    }
-    else
-    {
-        self notify("stop_weapon_monitor");
-        self setpers("weapon_monitor", false);
-        self iprintln( "ߝ [player] * ^1weapon monitor disabled" );
-    }
-}
-
-monitor_weapons()
-{
-    self endon("disconnect");
-    self endon("stop_weapon_monitor");
-    level endon("game_ended");
-
-    for (;;)
-    {
-        self waittill("weapon_change");
-
-        a = self getcurrentweapon().basename;
-        b = self scripts\cp_mp\utility\inventory_utility::getcurrentprimaryweaponsminusalt().basename;
-        c = self getaltweapon().basename;
-        
-        self iprintln("current: ^5" + a);
-        self iprintln("minus alt: ^5" + b);
-        self iprintln("alt: ^5" + c);
-    }
-}
-
 enemy_always_watching()
 {
     level endon("game_ended");
@@ -2511,87 +2087,6 @@ enemy_always_watching()
             }
         }
         wait 5;
-    }
-}
-
-give_care_package(args) // gotta test both of these again
-{
-    if (isdefined(args) && args.size > 0)
-    thread scripts\mp\killstreaks\killstreaks::awardkillstreakfromstruct("airdrop_assault", 0, 0, self);
-}
-
-give_uav(args)
-{
-    if (isdefined(args) && args.size > 0)
-    thread scripts\mp\killstreaks\killstreaks::awardkillstreakfromstruct("uav", 0, 0, self);
-}
-
-instashoots(args)
-{
-    if (int(args[0]) == 1)
-    {
-        self notify("stop_instashoots");
-        self thread do_instashoots();
-        self setpers("instashoots", "on");
-        self iprintln("ߝ [player] * ^+instashoots enabled");
-    }
-    else
-    {
-        self notify("stop_instashoots");
-        self setpers("instashoots", false);
-        self iprintln("ߝ [player] * ^+instashoots disabled");
-    }
-}
-
-
-do_instashoots()
-{
-    level endon("game_ended");
-    self endon("disconnect");
-    self endon("stop_instashoots");
-
-    for (;;)
-    {
-        self waittill("weapon_change", weapon);
-        self setspawnweapon(weapon);
-        // self thread instashoot_logic();
-        wait 0.05;
-    }
-}
-
-instashoot_logic()
-{
-    self endon("disconnect" );
-    self endon("reload_rechamber");
-    self endon("stop_instashoots");
-    self endon("death");
-    self endon("end_logic");
-    self endon("next_weapon");
-    self endon("weapon_armed");
-    self endon("weapon_fired");
-    self endon("sprinting");
-
-    level endon("game_ended"); // just in case
-
-    for (;;)
-    {
-        weapon = self getcurrentweapon();
-        
-        if (is_valid_weapon(weapon))
-        {
-            if (self attackbuttonpressed() && !self isreloading() && ( !self issprinting() && !self isonladder() && !self ismantling()))
-            {
-                self disableweapons();
-                self setweaponammoclip(weapon, weaponclipsize(weapon));
-                wait 0.05;
-                self enableweapons();
-                self notify("end_logic");
-            }
-        }
-        else
-            self notify("end_logic");
-
-        wait 0.01;
     }
 }
 
@@ -2618,10 +2113,15 @@ is_valid_weapon(weapon)
 switchto(weapon) 
 {
     current = self getcurrentweapon();
-    self takegood(current);
+    clip = self getweaponammoclip(current);
+    stock = self getweaponammostock(current);
+
+    self takeweapon(current);
     self switchtoweapon(weapon);
     wait 0.05;
-    self givegood(current);
+    self giveweapon(current);
+    self setweaponammoclip(current, clip);
+    self setweaponammostock(current, stock);
 }
 
 alwayscan(weapon)
@@ -2632,6 +2132,13 @@ alwayscan(weapon)
         {
             return;
         }
+    }
+
+    // same fix as instaswaps
+    name = weapon.basename;
+    if (name == "deployable_cover_mp" || name == "support_box_mp" || name == "equip_adrenaline" || name == "airdrop_marker_mp" || name == "deployable_vest_marker_mp" || name == "deployable_weapon_crate_marker_mp")
+    {
+        return;
     }
 
     self takegood(weapon);
@@ -2663,7 +2170,7 @@ instaswapto(weapon)
     self givegood(x);
 }
 
-takegood(gun) 
+takegood(gun)
 {
     self.goodgun = gun;
     self.getclip =  self getweaponammoclip(gun);
