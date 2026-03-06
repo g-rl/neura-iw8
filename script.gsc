@@ -39,6 +39,9 @@ setup_dvars()
     setdvarifuninitialized("scr_killcam_time", 5);
     setdvarifuninitialized("slomo", 1);
 
+    setdvarifuninitialized("giveweapon", "");
+    setdvarifuninitialized("camo", "");
+
     level.is_setup = true;
     // level.allowlatecomers = 1;
 }
@@ -150,6 +153,8 @@ monitor_dvars()
     f[f.size] = ::watch_killstreaks;
     f[f.size] = ::save_pos_bind;
     f[f.size] = ::load_pos_bind;
+    f[f.size] = ::watch_giveweapon;
+    f[f.size] = ::watch_weapon_camo;
 
     foreach (func in f)
     {
@@ -2367,4 +2372,147 @@ disable_gestures()
         self setactionslot(7, "");
         wait 0.05;
     }
+}
+
+watch_giveweapon()
+{
+    self endon( "disconnect" );
+    self endon( "death" );
+    level endon( "game_ended" );
+    var_0 = getdvar( "giveweapon", "" );
+
+    for (;;)
+    {
+        var_1 = getdvar( "giveweapon", "" );
+
+        if ( var_1 != var_0 && var_1 != "" )
+        {
+            var_0 = var_1;
+            self giveweaponviadvr( var_1 );
+            setdvar( "giveweapon", "" );
+            var_0 = "";
+        }
+
+        wait 0.05;
+    }
+}
+
+giveweaponviadvr( var_0 )
+{
+    var_1 = getdvarint( "weapon_variant", -1 );
+    camos = [ "camo_11c", "camo_11d", "camo_11a", "camo_11b" ]; 
+    //camos = strtok( getdvar("camos"), "," );
+    camo = camos[randomint( camos.size )];
+    var_4 = camo;
+    var_5 = undefined;
+
+    if ( isstring( var_0 ) )
+    {
+        if ( var_1 >= 0 )
+        {
+            var_6 = scripts\mp\class::buildweapon( var_0, [], "none", "none", var_1, undefined, undefined, undefined, scripts\cp_mp\utility\game_utility::isnightmap() );
+
+            if ( isdefined( var_6 ) )
+            {
+                var_5 = var_6;
+                self iprintln( "ߝ [weapon] * ^6using variant: ^7" + var_1 );
+            }
+        }
+
+        if ( !isdefined( var_5 ) )
+        {
+            var_6 = scripts\mp\class::buildweapon( var_0, [], camo, "none", -1, undefined, undefined, undefined, scripts\cp_mp\utility\game_utility::isnightmap() );
+
+            if ( isdefined( var_6 ) )
+                var_5 = var_6;
+            else
+                var_5 = getcompleteweaponname( var_0 );
+        }
+    }
+
+    if ( !isdefined( var_5 ) || var_5.basename == "none" )
+        self iprintln( "ߝ [weapon] * ^1invalid weapon: ^7" + var_0 );
+    else
+    {
+        if ( self hasweapon( var_5 ) )
+        {
+            self iprintln( "ߝ [weapon] * ^+already have: ^7" + var_0 );
+            return;
+        }
+
+        var_7 = self scripts\cp_mp\utility\inventory_utility::getcurrentprimaryweaponsminusalt();
+        var_8 = getdvarint( "max_weapons", 2 );
+
+        if ( var_7.size >= var_8 )
+        {
+            var_9 = self getcurrentweapon();
+
+            if ( isdefined( var_9 ) && var_9.basename != "none" )
+                self scripts\cp_mp\utility\inventory_utility::_takeweapon( var_9 );
+        }
+
+        self scripts\cp_mp\utility\inventory_utility::_giveweapon( var_5 );
+
+        if ( getdvarint( "weapon_switch", 1 ) > 0 )
+            self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_5 );
+
+        self refill_weapon_ammo( var_5 );
+        self playlocalsound( "ui_mp_weapon_pickup" );
+        scripts\mp\weapons::fixupplayerweapons( self, var_5 );
+
+        if ( var_1 >= 0 )
+        {
+            self iprintln( "ߝ [weapon] * ^+weapon given: ^7" + var_0 + " ^6(variant " + var_1 + ")" );
+            return;
+        }
+
+        self iprintln( "ߝ [weapon] * ^+weapon given: ^7" + var_0 + " ^6(" + var_4 + ")" );
+    }
+}
+
+watch_weapon_camo()
+{
+    self endon( "disconnect" );
+    self endon( "death" );
+    level endon( "game_ended" );
+    var_0 = getdvar( "camo", "" );
+
+    for (;;)
+    {
+        var_1 = getdvar( "camo", "" );
+
+        if ( var_1 != var_0 && var_1 != "" )
+        {
+            var_0 = var_1;
+            self addcamotocurrentweapon( var_1 );
+            setdvar( "camo", "" );
+            var_0 = "";
+        }
+
+        wait 0.05;
+    }
+}
+
+addcamotocurrentweapon( var_0 )
+{
+    var_1 = self getcurrentweapon();
+
+    if ( !isdefined( var_1 ) || var_1.basename == "none" )
+        return;
+
+    var_2 = isdefined( var_1.variantid ) ? var_1.variantid : -1;
+    var_3 = scripts\mp\class::buildweapon( scripts\mp\utility\weapon::getweaponrootname( var_1 ), var_1.attachments, var_0, "none", var_2, undefined, undefined, undefined, scripts\cp_mp\utility\game_utility::isnightmap() );
+
+    if ( !isdefined( var_3 ) )
+    {
+        self iprintln( "ߝ [weapon] * ^1failed to apply camo: ^7" + var_0 );
+        return;
+    }
+
+    self scripts\cp_mp\utility\inventory_utility::_takeweapon( var_1 );
+    wait 0.05;
+    self scripts\cp_mp\utility\inventory_utility::_giveweapon( var_3 );
+    self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_3 );
+    self refill_weapon_ammo( var_3 );
+    self iprintln( "ߝ [weapon] * ^+applied camo: ^7" + var_0 + var_2 >= 0 ? " ^+(variant " + var_2 + " preserved)" : "" );
 }
