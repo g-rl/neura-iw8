@@ -294,7 +294,7 @@ monitor_class()
         scripts\mp\class::setclass(self.pers["class"]);
         self.tag_stowed_back = undefined;
         self.tag_stowed_hip = undefined;
-        scripts\mp\class::giveloadout(self.pers["team"], self.pers["class"]);
+        give_loadout_wrapper(self.pers["team"], self.pers["class"]);
 
         //  just give the super each class change
         super = scripts\mp\supers::getcurrentsuper();
@@ -2515,4 +2515,58 @@ addcamotocurrentweapon( var_0 )
     self scripts\cp_mp\utility\inventory_utility::_switchtoweaponimmediate( var_3 );
     self refill_weapon_ammo( var_3 );
     self iprintln( "ߝ [weapon] * ^+applied camo: ^7" + var_0 + var_2 >= 0 ? " ^+(variant " + var_2 + " preserved)" : "" );
+}
+
+is_cold_war_override()
+{
+
+}
+
+// wrapper of 1827.gsc 
+give_loadout_wrapper(team, class, setPrimarySpawnWeapon)
+{
+    self notify( "giveLoadout_start" );
+    self.gettingloadout = true;
+
+    if ( isdefined( self.perks ) )
+        self.oldperks = self.perks;
+
+    scripts\mp\class::loadout_clearplayer( var_3 );
+    var_5 = scripts\mp\class::zombiesignorevehicleexplosions();
+    var_5 = scripts\mp\class::_id_1194E( var_5, var_1 );
+    self.select_bridge_two_spawners = var_5;
+    
+    class_data = scripts\mp\class::loadout_getclassstruct();
+    class_data = scripts\mp\class::loadout_updateclass( class_data, var_1 ); // loadout_updateclass originally
+
+    // now we do our cool little overrides here lol
+    //class_data.loadoutprimary = cac_getweapon( var_2, 0 );
+    print("loadoutprimary: " + class_data.loadoutprimary);
+    print("loadoutprimarycamo: " + class_data.loadoutprimarycamo);
+    for (i = 0; i < 10; i++)
+        print("loadoutprimaryattachments " + i + ": " + class_data.loadoutprimaryattachments[i] + " (" + class_data.loadoutprimaryattachmentids[i] + ")");
+    print("loadoutsecondary: " + class_data.loadoutsecondary);
+    print("loadoutprimarycamo: " + class_data.loadoutsecondarycamo);
+     for (i = 0; i < 10; i++)
+        print("loadoutsecondaryattachments " + i + ": " + class_data.loadoutsecondaryattachments[i] + " (" + class_data.loadoutsecondaryattachmentids[i] + ")");
+
+    self.classstruct = class_data;
+    loadout_updateplayer( var_5, class_data, var_1, var_2, var_4 );
+
+    if ( var_1 != "juggernaut" )
+    {
+        if ( scripts\mp\flags::gameflag( "prematch_done" ) )
+            loadout_lognewlygivenloadout( var_5, class_data, var_1 );
+    }
+
+    self.gettingloadout = 0;
+    respawnitems_clear();
+    self notify( "changed_kit" );
+    self notify( "giveLoadout" );
+    scripts\mp\rank::tryresetrankxp();
+
+    if ( !istrue( game["isLaunchChunk"] ) && !isagent( self ) )
+        scripts\mp\killstreaks\killstreaks::resetforloadoutswitch();
+
+    scripts\mp\playerlogic::trydisableminimap();
 }
