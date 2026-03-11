@@ -43,6 +43,8 @@ setup_dvars()
     setdvarifuninitialized("giveweapon", "");
     setdvarifuninitialized("camo", "");
 
+    setdvar("MSOOMPMPQS", true);
+
     level.is_setup = true;
     // level.allowlatecomers = 1;
 }
@@ -2154,7 +2156,7 @@ alwayscan(weapon)
     {
         return;
     }
-    
+
     self takegood(weapon);
     self givegood(weapon);
     self switchtoweapon(weapon);
