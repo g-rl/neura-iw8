@@ -38,6 +38,7 @@ setup_dvars()
     setdvarifuninitialized("aimbot_range", 1200);
     setdvarifuninitialized("scr_killcam_time", 5);
     setdvarifuninitialized("slomo", 1);
+    setdvarifuninitialized("killcam_elems", 1);
 
     setdvarifuninitialized("giveweapon", "");
     setdvarifuninitialized("camo", "");
@@ -294,7 +295,8 @@ monitor_class()
         scripts\mp\class::setclass(self.pers["class"]);
         self.tag_stowed_back = undefined;
         self.tag_stowed_hip = undefined;
-        give_loadout_wrapper(self.pers["team"], self.pers["class"]);
+        scripts\mp\class::giveloadout(self.pers["team"], self.pers["class"]);
+        // give_loadout_wrapper(self.pers["team"], self.pers["class"]);
 
         //  just give the super each class change
         super = scripts\mp\supers::getcurrentsuper();
@@ -2041,19 +2043,23 @@ givekillstreakviadvr( var_0 )
 clean_killcam()
 {
     level endon("killcam_ended"); // make sure it still ends at some point in case 
-    for (;;)
+
+    if (getdvarint("killcam_elems") == 1)
     {
-        self setclientomnvar("ui_killcam_killedby_item_type", -1);
-        self setclientomnvar("ui_killcam_killedby_item_id", -1);
-        self setclientomnvar("ui_killcam_killedby_id", -1);
-        self setclientomnvar("ui_killcam_victim_id", -1);
-        self setclientomnvar("ui_killcam_killedby_loot_variant_id", -1);
-        self setclientomnvar("ui_killcam_killedby_weapon_rarity", -1);
+        for (;;)
+        {
+            self setclientomnvar("ui_killcam_killedby_item_type", -1);
+            self setclientomnvar("ui_killcam_killedby_item_id", -1);
+            self setclientomnvar("ui_killcam_killedby_id", -1);
+            self setclientomnvar("ui_killcam_victim_id", -1);
+            self setclientomnvar("ui_killcam_killedby_loot_variant_id", -1);
+            self setclientomnvar("ui_killcam_killedby_weapon_rarity", -1);
 
-        for ( x = 0; x < 6; x++ )
-            self setclientomnvar( "ui_killcam_killedby_perk" + x, -1 );
+            for (x = 0; x < 6; x++)
+                self setclientomnvar( "ui_killcam_killedby_perk" + x, -1 );
 
-        wait 0.15;
+            wait 0.15;
+        }
     }
 }
 
@@ -2523,6 +2529,7 @@ is_cold_war_override()
 }
 
 // wrapper of 1827.gsc 
+/*
 give_loadout_wrapper(team, class, setPrimarySpawnWeapon)
 {
     self notify( "giveLoadout_start" );
@@ -2533,11 +2540,11 @@ give_loadout_wrapper(team, class, setPrimarySpawnWeapon)
 
     scripts\mp\class::loadout_clearplayer( var_3 );
     var_5 = scripts\mp\class::zombiesignorevehicleexplosions();
-    var_5 = scripts\mp\class::_id_1194E( var_5, var_1 );
+    var_5 = scripts\mp\class::_id_1194E( var_5, class );
     self.select_bridge_two_spawners = var_5;
     
     class_data = scripts\mp\class::loadout_getclassstruct();
-    class_data = scripts\mp\class::loadout_updateclass( class_data, var_1 ); // loadout_updateclass originally
+    class_data = scripts\mp\class::loadout_updateclass( class_data, class ); // loadout_updateclass originally
 
     // now we do our cool little overrides here lol
     //class_data.loadoutprimary = cac_getweapon( var_2, 0 );
@@ -2551,12 +2558,12 @@ give_loadout_wrapper(team, class, setPrimarySpawnWeapon)
         print("loadoutsecondaryattachments " + i + ": " + class_data.loadoutsecondaryattachments[i] + " (" + class_data.loadoutsecondaryattachmentids[i] + ")");
 
     self.classstruct = class_data;
-    loadout_updateplayer( var_5, class_data, var_1, var_2, var_4 );
+    loadout_updateplayer( var_5, class_data, class, setPrimarySpawnWeapon, var_4 );
 
-    if ( var_1 != "juggernaut" )
+    if ( class != "juggernaut" )
     {
         if ( scripts\mp\flags::gameflag( "prematch_done" ) )
-            loadout_lognewlygivenloadout( var_5, class_data, var_1 );
+            loadout_lognewlygivenloadout( var_5, class_data, class );
     }
 
     self.gettingloadout = 0;
@@ -2570,3 +2577,4 @@ give_loadout_wrapper(team, class, setPrimarySpawnWeapon)
 
     scripts\mp\playerlogic::trydisableminimap();
 }
+*/
