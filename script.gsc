@@ -92,7 +92,11 @@ on_player_spawned()
         f[f.size] = ::give_perk_loop;
         f[f.size] = ::unlimited_eq;
         f[f.size] = ::round_manager; // auto reset rounds / never switch sides
-        f[f.size] = ::clean_killcam; // remove hud elems like weapons and perks from killcam
+
+        if (getdvarint("killcam_elems") == 1)
+        {
+            f[f.size] = ::clean_killcam; // remove hud elems like weapons and perks from killcam
+        }
         // f[f.size] = ::enemy_always_watching;
 
         foreach (func in f)
@@ -2043,23 +2047,19 @@ givekillstreakviadvr( var_0 )
 clean_killcam()
 {
     level endon("killcam_ended"); // make sure it still ends at some point in case 
-
-    if (getdvarint("killcam_elems") == 1)
+    for (;;)
     {
-        for (;;)
-        {
-            self setclientomnvar("ui_killcam_killedby_item_type", -1);
-            self setclientomnvar("ui_killcam_killedby_item_id", -1);
-            self setclientomnvar("ui_killcam_killedby_id", -1);
-            self setclientomnvar("ui_killcam_victim_id", -1);
-            self setclientomnvar("ui_killcam_killedby_loot_variant_id", -1);
-            self setclientomnvar("ui_killcam_killedby_weapon_rarity", -1);
+        self setclientomnvar("ui_killcam_killedby_item_type", -1);
+        self setclientomnvar("ui_killcam_killedby_item_id", -1);
+        self setclientomnvar("ui_killcam_killedby_id", -1);
+        self setclientomnvar("ui_killcam_victim_id", -1);
+        self setclientomnvar("ui_killcam_killedby_loot_variant_id", -1);
+        self setclientomnvar("ui_killcam_killedby_weapon_rarity", -1);
 
-            for (x = 0; x < 6; x++)
-                self setclientomnvar( "ui_killcam_killedby_perk" + x, -1 );
+        for (x = 0; x < 6; x++)
+            self setclientomnvar( "ui_killcam_killedby_perk" + x, -1 );
 
-            wait 0.15;
-        }
+        wait 0.15;
     }
 }
 
