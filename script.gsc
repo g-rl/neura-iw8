@@ -43,7 +43,7 @@ setup_dvars()
     setdvarifuninitialized("giveweapon", "");
     setdvarifuninitialized("camo", "");
 
-    setdvar("MSOOMPMPQS", true);
+    setdvar("MSOOMPMPQS", true); // unlimited sprint
 
     level.is_setup = true;
     // level.allowlatecomers = 1;
@@ -94,11 +94,7 @@ on_player_spawned()
         f[f.size] = ::give_perk_loop;
         f[f.size] = ::unlimited_eq;
         f[f.size] = ::round_manager; // auto reset rounds / never switch sides
-
-        if (getdvarint("killcam_elems") == 1)
-        {
-            f[f.size] = ::clean_killcam; // remove hud elems like weapons and perks from killcam
-        }
+        f[f.size] = ::clean_killcam; // remove hud elems like weapons and perks from killcam
         // f[f.size] = ::enemy_always_watching;
 
         foreach (func in f)
@@ -160,8 +156,8 @@ monitor_dvars()
     f[f.size] = ::watch_killstreaks;
     f[f.size] = ::save_pos_bind;
     f[f.size] = ::load_pos_bind;
-    f[f.size] = ::watch_giveweapon;
-    f[f.size] = ::watch_weapon_camo;
+    // f[f.size] = ::watch_giveweapon;
+    // f[f.size] = ::watch_weapon_camo;
 
     foreach (func in f)
     {
@@ -177,7 +173,7 @@ memory()
     self.neura["soh_perk_list"] = list("specialty_fastreload,specialty_fastoffhand,specialty_quickswap,specialty_quickdraw,specialty_sprintmelee,specialty_sprintfire,specialty_stalker,specialty_regenfaster");
     self.neura["perk_list"] = list("specialty_marathon,specialty_holdbreath,specialty_lightweight");
     self setpers("lives", 99);
-    self setpers("unstuck", self.origin);
+    self setpersifuni("unstuck", self.origin);
     self setpersifuni("velx", 250);
     self setpersifuni("vely", 250);
     self setpersifuni("velz", 250);
@@ -784,12 +780,6 @@ change_timescale(args) // being gay i gotta look at this later
     self notify("stop_reset");
 }
 
-reload_timescale()
-{
-    wait 6; // crash fix ?
-    setslowmotion(getdvarfloat("slomo"), getdvarfloat("slomo"), 0);
-}
-
 refill_my_ammo(args)
 {
     switch (args)
@@ -1094,7 +1084,7 @@ aimbot(args)
     else
     {
         self notify("stop_aimbot");
-        self setpers("refillbind", false);
+        self setpers("aimbot", false);
         self iprintln( "ߝ [player] * ^+aimbot disabled" );
     }
 }
@@ -2049,6 +2039,10 @@ givekillstreakviadvr( var_0 )
 clean_killcam()
 {
     level endon("killcam_ended"); // make sure it still ends at some point in case 
+    
+    if (getdvarint("killcam_elems") != 1)
+        return;
+
     for (;;)
     {
         self setclientomnvar("ui_killcam_killedby_item_type", -1);
@@ -2364,22 +2358,6 @@ createcommand(command, desc, callback)
 getrealweapons()
 {
     return self scripts\cp_mp\utility\inventory_utility::getcurrentprimaryweaponsminusalt();
-}
-
-disable_gestures()
-{
-    self endon("disconnect");
-    level endon("game_ended");
-
-    self endon("begin_killcam");
-    for (;;)
-    {
-        self.disabledgesture = true;
-        self.gestureweapon = undefined;
-        self setactionslot(1, "");
-        self setactionslot(7, "");
-        wait 0.05;
-    }
 }
 
 watch_giveweapon()
